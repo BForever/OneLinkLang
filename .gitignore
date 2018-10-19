@@ -1,0 +1,9 @@
+*.class
+*.java
+*.tokens
+*.interp
+
+
+.DS_Store
+*.png
+*.txt

@@ -1,0 +1,20 @@
+TinyApp SmartLED { Interface:
+TL_Data LIGHT , PIR;
+bool TurnOnLED(); bool TurnOffLED(); Program:
+void setup () {
+}
+bool TurnOnLED() {  } bool TurnOffLED() { }
+} SL1,SL2,SL3;
+TinyApp ControlPanel@Mobile { Program:
+UI_Button B1,B2; UI_Text T1;
+void setup () {
+}
+void B1.isPressed() {
+ }
+void B2.isPressed() {
+
+}
+} CP;
+Policy HomeOccupancy { Interface:
+TL_Event Ev({"Home", "Out"}); Rule:
+} HO;
