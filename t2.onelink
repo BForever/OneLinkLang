@@ -16,4 +16,14 @@ double sm = TL_Soil_Moisture . data () ; String url = "http://hostname/ul.php?";
 }
 endprogram } SD;
 Policy DoorEvent { Interface:
-TL_Event Ev({"Open", "Close"});  } DE;
+TL_Event Ev({"Open", "Close"}); Rule:
+If (SmartDoor::Gyro.last("z")>100) { Ev.trigger("Open");
+} Else If (SmartDoor::Gyro.last("z")<-100) { Ev.trigger("Close");
+} Within(0.05, 1); } DE;
+Policy LightControl { Rule:
+If (DE::Ev.isTriggered("Open") && TL_Time. hour >=17 && SL1::LIGHT.last() <1000) {
+For(L In {SL1,SL2,SL3}) { L::TurnOnLED(); } } Within(5, 0.05);
+If (HO::Ev.isTriggered("Out") && TL_Time.hour
+>=8 && TL_Time.hour <17) {
+For(L In {SL1,SL2,SL3}) { L::TurnOffLED();}
+} Within(600, 0.05); } LC;

@@ -1,20 +1,26 @@
 TinyApp SmartLED { Interface:
 TL_Data LIGHT , PIR;
 bool TurnOnLED(); bool TurnOffLED(); Program:
-void setup () {
+void setup () { TL_Connector.bind(TL_WiFi); TL_WiFi.join("SSID", "PASSWD"); LIGHT.bind(TL_Light); PIR.bind(TL_PIR);
 }
-bool TurnOnLED() {  } bool TurnOffLED() { }
-} SL1,SL2,SL3;
-TinyApp ControlPanel@Mobile { Program:
+bool TurnOnLED() { return TL_LED.turnOn(); } bool TurnOffLED() { return TL_LED.turnOff();}
+endprogram} SL1,SL2,SL3;
+/*TinyApp ControlPanel@Mobile { Program:
 UI_Button B1,B2; UI_Text T1;
 void setup () {
+B1.setText("Turn on LEDs"); B2.setText("Turn off LEDs"); T1.bind(HomeOccupancy::HO.last()); TL_UI.append({B1,B2,T1});
 }
 void B1.isPressed() {
- }
+For(L In {SL1,SL2,SL3}) { L::TurnOnLED(); } }
 void B2.isPressed() {
-
+For(L In {SL1,SL2,SL3}) { L::TurnOnLED(); }
 }
-} CP;
+} CP;*/
 Policy HomeOccupancy { Interface:
 TL_Event Ev({"Home", "Out"}); Rule:
+If(Any({SL1,SL2,SL3}::PIR.last("5min").avg() >0)){
+Ev.trigger("Home");
+} Else {
+Ev.trigger("Out");
+} Within(30, 0.05);
 } HO;

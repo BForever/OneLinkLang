@@ -3,11 +3,25 @@ options{ tokenVocab=OneLinkLexer; }
 // OneLink Grammar
 compliationUnit : (importStmt|tinyApp|policy)*;
 importStmt  :   IMPORT  StringLiteral SEMI;
-tinyApp :   TINYAPP   ID    (MOBILE|CLOUD)? LBRACE (interfaceBlock|programBlock)+    RBRACE ID  (COMMA ID)*    SEMI;
-policy  :   POLICY    ID    LBRACE (interfaceBlock|ruleBlock)+ RBRACE ID (COMMA ID)* SEMI;
+tinyApp :   TINYAPP   ID    MOBILE  LBRACE  appBlocks    RBRACE idseq    SEMI
+        |   TINYAPP   ID    CLOUD   LBRACE  appBlocks    RBRACE idseq    SEMI
+        |   TINYAPP   ID    LBRACE  appBlocks   RBRACE   idseq  SEMI
+        ;
+policy  :   POLICY    ID    LBRACE policyBlocks RBRACE   idseq  SEMI;
+appBlocks   :   interfaceBlock  appBlocks
+            |   programBlock    appBlocks
+            |
+            ;
+policyBlocks:   interfaceBlock  policyBlocks
+            |   ruleBlock    policyBlocks
+            |
+            ;
+idseq   :   ID  COMMA   idseq
+        |   ID
+        ;
 interfaceBlock   :  INTERFACE COLON (data|event|service)*;
 programBlock :  PROGRAMSTART translationunit PROGRAMEND;
-ruleBlock    :  RULE    COLON;    //TODO
+ruleBlock    :  RULE    COLON   stmtseq;    //TODO
 data    :   DATA_T  ID  (COMMA ID)*   SEMI;
 event   :   EVENT_T ID  LPAREN list RPAREN SEMI;
 service :   type    ID  LPAREN RPAREN SEMI;   //TODO
@@ -22,15 +36,73 @@ type    :   BOOL_T
         ;
 list    :   LBRACE expr (COMMA expr)*  RBRACE
         |   LBRACE RBRACE; // Empty list
-expr    :   list
-        |   IntegerLiteral
-        |   FloatLiteral
-        |   StringLiteral
-        |   BoolLiteral
-        |   LPAREN expr RPAREN
+stmtseq :   stmt stmtseq
+        |
+        ;
+stmt    :   exprStmt    SEMI
+        |   ifStmt
+        |   forStmt
+        |   compStmt
+        ;
+exprStmt:   connectExpr
+        |   allStmt
+        |   anyStmt
+        ;
+ifStmt  :   IF LPAREN expr RPAREN stmt ELSE stmt WITHIN LPAREN deadline COMMA missRatio RPAREN SEMI
+        |   IF LPAREN expr RPAREN stmt ELSE stmt
+        |   IF LPAREN expr RPAREN stmt WITHIN LPAREN deadline COMMA missRatio RPAREN SEMI
+        |   IF LPAREN expr RPAREN stmt
+        ;
+forStmt :   FOR LPAREN ID IN list RPAREN stmt;
+allStmt :   ALL LPAREN expr RPAREN;//TODO
+anyStmt :   ANY LPAREN expr RPAREN;//TODO
+compStmt:   LBRACE stmtseq RBRACE
+        ;
+idExpr  :   ID;
+callExpr:   ID LPAREN paralist RPAREN;
+integerLiteral  : PLUS (Decimal | Hex | Octal)
+                | MINUS (Decimal | Hex | Octal)
+                | (Decimal | Hex | Octal)
+                ;
+
+numberLiteral:  integerLiteral|FloatLiteral;
+deadline:   numberLiteral;
+missRatio   :   numberLiteral;
+connectExpr :   connectExpr COLON COLON idExpr
+            |   connectExpr COLON COLON callExpr
+            |   connectExpr DOT idExpr
+            |   connectExpr DOT callExpr
+            |   idExpr
+            |   list
+            ;
+expr    :   list                #listexpr
+        |   exprStmt            #stmtexpr
+        |   integerLiteral      #intexpr
+        |   FloatLiteral        #floatexpr
+        |   StringLiteral       #stringexpr
+        |   BoolLiteral         #boolexpr
+        |   LPAREN expr RPAREN  #parenexpr
+        |   NOT     expr        #notexpr
+        |   MINUS   expr        #minusexpr
+        |   expr    MUL expr    #mulexpr
+        |   expr    DIV expr    #divexpr
+        |   expr    MOD expr    #modexpr
+        |   expr    PLUS    expr#addexpr
+        |   expr    MINUS   expr#subexpr
+        |   expr    GT  expr    #gtexpr
+        |   expr    GE  expr    #geexpr
+        |   expr    EQ  expr    #eqexpr
+        |   expr    NEQ expr    #neqexpr
+        |   expr    LE  expr    #leexpr
+        |   expr    LT  expr    #ltexpr
+        |   expr    AND expr    #andexpr
+        |   expr    OR  expr    #orexpr
         ;
 
-
+paralist:   parameter paralist
+        |
+        ;
+parameter   :   expr;
 
 
 // C++14 Grammar
@@ -154,7 +226,7 @@ lambdacapture
 capturedefault
 :
 	'&'
-	| '='
+	| Assign
 ;
 
 capturelist
@@ -198,16 +270,16 @@ postfixexpression
 	| typenamespecifier LeftParen expressionlist? RightParen
 	| simpletypespecifier bracedinitlist
 	| typenamespecifier bracedinitlist
-	| postfixexpression '.' Template? idexpression
+	| postfixexpression Dot Template? idexpression
 	| postfixexpression '->' Template? idexpression
-	| postfixexpression '.' pseudodestructorname
+	| postfixexpression Dot pseudodestructorname
 	| postfixexpression '->' pseudodestructorname
 	| postfixexpression '++'
 	| postfixexpression '--'
-	| Dynamic_cast '<' thetypeid '>' LeftParen expression RightParen
-	| Static_cast '<' thetypeid '>' LeftParen expression RightParen
-	| Reinterpret_cast '<' thetypeid '>' LeftParen expression RightParen
-	| Const_cast '<' thetypeid '>' LeftParen expression RightParen
+	| Dynamic_cast Less thetypeid Greater LeftParen expression RightParen
+	| Static_cast Less thetypeid Greater LeftParen expression RightParen
+	| Reinterpret_cast Less thetypeid Greater LeftParen expression RightParen
+	| Const_cast Less thetypeid Greater LeftParen expression RightParen
 	| typeidofthetypeid LeftParen expression RightParen
 	| typeidofthetypeid LeftParen thetypeid RightParen
 ;
@@ -255,12 +327,12 @@ unaryexpression
 unaryoperator
 :
 	'|'
-	| '*'
+	| Star
 	| '&'
-	| '+'
-	| '!'
+	| Plus
+	| Not
 	| '~'
-	| '-'
+	| Minus
 ;
 
 newexpression
@@ -324,16 +396,16 @@ pmexpression
 multiplicativeexpression
 :
 	pmexpression
-	| multiplicativeexpression '*' pmexpression
-	| multiplicativeexpression '/' pmexpression
-	| multiplicativeexpression '%' pmexpression
+	| multiplicativeexpression Star pmexpression
+	| multiplicativeexpression Div pmexpression
+	| multiplicativeexpression Mod pmexpression
 ;
 
 additiveexpression
 :
 	multiplicativeexpression
-	| additiveexpression '+' multiplicativeexpression
-	| additiveexpression '-' multiplicativeexpression
+	| additiveexpression Plus multiplicativeexpression
+	| additiveexpression Minus multiplicativeexpression
 ;
 
 shiftexpression
@@ -346,17 +418,17 @@ shiftexpression
 relationalexpression
 :
 	shiftexpression
-	| relationalexpression '<' shiftexpression
-	| relationalexpression '>' shiftexpression
-	| relationalexpression '<=' shiftexpression
-	| relationalexpression '>=' shiftexpression
+	| relationalexpression Less shiftexpression
+	| relationalexpression Greater shiftexpression
+	| relationalexpression LessEqual shiftexpression
+	| relationalexpression GreaterEqual shiftexpression
 ;
 
 equalityexpression
 :
 	relationalexpression
-	| equalityexpression '==' relationalexpression
-	| equalityexpression '!=' relationalexpression
+	| equalityexpression Equal relationalexpression
+	| equalityexpression NotEqual relationalexpression
 ;
 
 andexpression
@@ -380,13 +452,13 @@ inclusiveorexpression
 logicalandexpression
 :
 	inclusiveorexpression
-	| logicalandexpression '&&' inclusiveorexpression
+	| logicalandexpression AndAnd inclusiveorexpression
 ;
 
 logicalorexpression
 :
 	logicalandexpression
-	| logicalorexpression '||' logicalandexpression
+	| logicalorexpression OrOr logicalandexpression
 ;
 
 conditionalexpression
@@ -404,11 +476,11 @@ assignmentexpression
 
 assignmentoperator
 :
-	'='
+	Assign
 	| '*='
 	| '/='
 	| '%='
-	| '+='
+	| PlusAssign
 	| '-='
 	| rightShiftAssign
 	| '<<='
@@ -473,7 +545,7 @@ selectionstatement
 condition
 :
 	expression
-	| attributespecifierseq? declspecifierseq declarator '=' initializerclause
+	| attributespecifierseq? declspecifierseq declarator Assign initializerclause
 	| attributespecifierseq? declspecifierseq declarator bracedinitlist
 ;
 
@@ -550,7 +622,7 @@ blockdeclaration
 
 aliasdeclaration
 :
-	Using Identifier attributespecifierseq? '=' thetypeid Semi
+	Using Identifier attributespecifierseq? Assign thetypeid Semi
 ;
 
 simpledeclaration
@@ -724,7 +796,7 @@ enumeratorlist
 enumeratordefinition
 :
 	enumerator
-	| enumerator '=' constantexpression
+	| enumerator Assign constantexpression
 ;
 
 enumerator
@@ -782,7 +854,7 @@ namespacealias
 
 namespacealiasdefinition
 :
-	Namespace Identifier '=' qualifiednamespacespecifier Semi
+	Namespace Identifier Assign qualifiednamespacespecifier Semi
 ;
 
 qualifiednamespacespecifier
@@ -923,10 +995,10 @@ trailingreturntype
 
 ptroperator
 :
-	'*' attributespecifierseq? cvqualifierseq?
+	Star attributespecifierseq? cvqualifierseq?
 	| '&' attributespecifierseq?
-	| '&&' attributespecifierseq?
-	| nestednamespecifier '*' attributespecifierseq? cvqualifierseq?
+	| AndAnd attributespecifierseq?
+	| nestednamespecifier Star attributespecifierseq? cvqualifierseq?
 ;
 
 cvqualifierseq
@@ -943,7 +1015,7 @@ cvqualifier
 refqualifier
 :
 	'&'
-	| '&&'
+	| AndAnd
 ;
 
 declaratorid
@@ -1007,9 +1079,9 @@ parameterdeclarationlist
 parameterdeclaration
 :
 	attributespecifierseq? declspecifierseq declarator
-	| attributespecifierseq? declspecifierseq declarator '=' initializerclause
+	| attributespecifierseq? declspecifierseq declarator Assign initializerclause
 	| attributespecifierseq? declspecifierseq abstractdeclarator?
-	| attributespecifierseq? declspecifierseq abstractdeclarator? '='
+	| attributespecifierseq? declspecifierseq abstractdeclarator? Assign
 	initializerclause
 ;
 
@@ -1023,8 +1095,8 @@ functionbody
 :
 	ctorinitializer? compoundstatement
 	| functiontryblock
-	| '=' Default Semi
-	| '=' Delete Semi
+	| Assign Default Semi
+	| Assign Delete Semi
 ;
 
 initializer
@@ -1035,7 +1107,7 @@ initializer
 
 braceorequalinitializer
 :
-	'=' initializerclause
+	Assign initializerclause
 	| bracedinitlist
 ;
 
@@ -1136,7 +1208,7 @@ virtspecifier
 
 /*
 purespecifier:
-	'=' '0'//Conflicts with the lexer
+	Assign '0'//Conflicts with the lexer
  ;
  */
 purespecifier
@@ -1237,7 +1309,7 @@ literaloperatorid
 /*Templates*/
 templatedeclaration
 :
-	Template '<' templateparameterlist '>' declaration
+	Template Less templateparameterlist Greater declaration
 ;
 
 templateparameterlist
@@ -1255,23 +1327,23 @@ templateparameter
 typeparameter
 :
 	Class '...'? Identifier?
-	| Class Identifier? '=' thetypeid
+	| Class Identifier? Assign thetypeid
 	| Typename '...'? Identifier?
-	| Typename Identifier? '=' thetypeid
-	| Template '<' templateparameterlist '>' Class '...'? Identifier?
-	| Template '<' templateparameterlist '>' Class Identifier? '=' idexpression
+	| Typename Identifier? Assign thetypeid
+	| Template Less templateparameterlist Greater Class '...'? Identifier?
+	| Template Less templateparameterlist Greater Class Identifier? Assign idexpression
 ;
 
 simpletemplateid
 :
-	templatename '<' templateargumentlist? '>'
+	templatename Less templateargumentlist? Greater
 ;
 
 templateid
 :
 	simpletemplateid
-	| operatorfunctionid '<' templateargumentlist? '>'
-	| literaloperatorid '<' templateargumentlist? '>'
+	| operatorfunctionid Less templateargumentlist? Greater
+	| literaloperatorid Less templateargumentlist? Greater
 ;
 
 templatename
@@ -1305,7 +1377,7 @@ explicitinstantiation
 
 explicitspecialization
 :
-	Template '<' '>' declaration
+	Template Less Greater declaration
 ;
 
 /*Exception handling*/
@@ -1382,20 +1454,20 @@ theoperator
 	| Delete
 	| New '[' ']'
 	| Delete '[' ']'
-	| '+'
-	| '-'
-	| '*'
-	| '/'
-	| '%'
+	| Plus
+	| Minus
+	| Star
+	| Div
+	| Mod
 	| '^'
 	| '&'
 	| '|'
 	| '~'
-	| '!'
-	| '='
-	| '<'
-	| '>'
-	| '+='
+	| Not
+	| Assign
+	| Less
+	| Greater
+	| PlusAssign
 	| '-='
 	| '*='
 	| '/='
@@ -1407,12 +1479,12 @@ theoperator
 	| rightShift
 	| rightShiftAssign
 	| '<<='
-	| '=='
-	| '!='
-	| '<='
-	| '>='
-	| '&&'
-	| '||'
+	| Equal
+	| NotEqual
+	| LessEqual
+	| GreaterEqual
+	| AndAnd
+	| OrOr
 	| '++'
 	| '--'
 	| Comma

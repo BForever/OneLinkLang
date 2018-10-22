@@ -11,45 +11,25 @@ TEXT_T  :   'UI_Text';
 DATA_T  :   'TL_Data';
 EVENT_T :   'TL_Event';
 // Words
-IMPORT  :   [Ii][Mm][Pp][Oo][Rr][Tt];
-TINYAPP :   [Tt][Ii][Nn][Yy][Aa][Pp][Pp];
-POLICY  :   [Pp][Oo][Ll][Ii][Cc][Yy];
-MOBILE  :   '@'[Mm][Oo][Bb][Ii][Ll][Ee];
-CLOUD   :   '@'[Cc][Ll][Oo][Uu][Dd];
-INTERFACE   :   [Ii][Nn][Tt][Ee][Rr][Ff][Aa][Cc][Ee];
-PROGRAMSTART    :   [Pp][Rr][Oo][Gg][Rr][Aa][Mm]':' -> mode(CPP);
-RULE    :   [Rr][Uu][Ll][Ee];
-STRUCT  :   'struct';
-RETURN  :   'return';
-IF      :   'if';
-ELSE    :   'else';
-WHILE   :   'while';
-FOR     :   'for';
-// Value
-ID  :   (LETTER|'_')(LETTER|'_'|DIGIT)*;
-BoolLiteral :   TRUE|FALSE;
-TRUE    :   'true';
-FALSE   :   'false';
-StringLiteral  :   '"' (ESC|.)*?   '"';
-Decimal : [0] | [1-9][0-9]*;
-Hex : [0][xX][0-9a-fA-F]+;
-Octal : [0][0-7]+;
-IntegerLiteral : [+\-]?(Decimal | Hex | Octal);
-Lnum : [0-9]+;
-Dnum : ([0-9]*'.'Lnum) | (Lnum'.'[0-9]*);
-FloatLiteral : [+\-]?((Lnum | Dnum) ([eE][+\-]?Lnum)?);
-// Extra
-WS  :   [ \t\r\n]+  -> skip;
-// Comments
-fragment
-BLOCKCOMMENT : '/*' .*? '*/';
-fragment
-LINECOMMENT : '//'.*? '\r'? '\n';
+IMPORT  :   'Import';
+TINYAPP :   'TinyApp';
+POLICY  :   'Policy';
+MOBILE  :   'Mobile';
+CLOUD   :   'Cloud';
+INTERFACE   :   'Interface';
+PROGRAMSTART    :   'Program' ':' -> mode(CPP);
+RULE    :   'Rule';
+IF      :   'If';
+ELSE    :   'Else';
+FOR     :   'For';
+IN      :   'In';
+WITHIN  :   'Within';
+ALL     :   'All';
+ANY     :   'Any';
 
-COMMENT : (BLOCKCOMMENT | LINECOMMENT) -> skip;
 // Operator
 ASSIGN  :   '=';
-ASSIGNPLUS  :   '+=';
+PLUSASSIGN  :   '+=';
 GT      :   '>';
 LT      :   '<';
 GE      :   '>=';
@@ -62,8 +42,35 @@ MUL     :   '*';
 DIV     :   '/';
 MOD     :   '%';
 OR      :   '||';
+AND     :   '&&';
 NOT     :   '!';
 DOT     :   '.';
+
+// Value
+ID  :   (LETTER|'_')(LETTER|'_'|DIGIT)*;
+BoolLiteral :   TRUE|FALSE;
+TRUE    :   'true';
+FALSE   :   'false';
+StringLiteral  :   '"' (ESC|.)*?   '"';
+Decimal : [0] | [1-9][0-9]*;
+Hex : [0][xX][0-9a-fA-F]+;
+Octal : [0][0-7]+;
+fragment
+Lnum : [0-9]+;
+fragment
+Dnum : ([0-9]*'.'Lnum) | (Lnum'.'[0-9]*);
+FloatLiteral : [+\-]?((Lnum | Dnum) ([eE][+\-]?Lnum)?);
+
+// Extra
+WS  :   [ \t\r\n]+  -> skip;
+// Comments
+fragment
+BLOCKCOMMENT : '/*' .*? '*/';
+fragment
+LINECOMMENT : '//'.*? '\r'? '\n';
+
+COMMENT : (BLOCKCOMMENT | LINECOMMENT) -> skip;
+
 fragment
 ESC :   '\\"'|'\\\\';
 fragment
