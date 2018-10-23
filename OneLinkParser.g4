@@ -350,7 +350,16 @@ logicalorexpression
 :
     primaryexpression
     | postfixexpression
-    | unaryexpression
+    | '++' castexpression
+    | '--' castexpression
+   	| unaryoperator castexpression
+   	| Sizeof unaryexpression
+   	| Sizeof LeftParen thetypeid RightParen
+   	| Sizeof '...' LeftParen Identifier RightParen
+   	| Alignof LeftParen thetypeid RightParen
+   	| noexceptexpression
+   	| newexpression
+   	| deleteexpression
     | castexpression
 	| Sizeof '...' LeftParen Identifier RightParen
 	| Alignof LeftParen thetypeid RightParen
@@ -388,19 +397,7 @@ assignmentexpression
 	logicalorexpression assignmentoperator initializerclause
 	| throwexpression
 ;
-unaryexpression
-:
-	'++' castexpression
-	| '--' castexpression
-	| unaryoperator castexpression
-	| Sizeof unaryexpression
-	| Sizeof LeftParen thetypeid RightParen
-	| Sizeof '...' LeftParen Identifier RightParen
-	| Alignof LeftParen thetypeid RightParen
-	| noexceptexpression
-	| newexpression
-	| deleteexpression
-;
+
 
 unaryoperator
 :
