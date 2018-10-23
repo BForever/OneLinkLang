@@ -1,11 +1,16 @@
 parser grammar OneLinkParser;
 options{ tokenVocab=OneLinkLexer; }
 // OneLink Grammar
-compliationUnit : (importStmt|tinyApp|policy)*;
+compliationUnit : unitseq;
+unitseq :   importStmt  unitseq
+        |   tinyApp     unitseq
+        |   policy      unitseq
+        |
+        ;
 importStmt  :   IMPORT  Stringliteral Semi;
-tinyApp :   TINYAPP   Identifier    MOBILE  LeftBrace  appBlocks    RightBrace idseq    Semi
-        |   TINYAPP   Identifier    CLOUD   LeftBrace  appBlocks    RightBrace idseq    Semi
-        |   TINYAPP   Identifier    LeftBrace  appBlocks   RightBrace   idseq  Semi
+tinyApp :   TINYAPP   Identifier    MOBILE  LeftBrace  appBlocks    RightBrace idseq    Semi    #mobileAPP
+        |   TINYAPP   Identifier    CLOUD   LeftBrace  appBlocks    RightBrace idseq    Semi    #deviceAPP
+        |   TINYAPP   Identifier    LeftBrace  appBlocks   RightBrace   idseq  Semi             #deviceAPP
         ;
 policy  :   POLICY    Identifier    LeftBrace policyBlocks RightBrace   idseq  Semi;
 appBlocks   :   interfaceBlock  appBlocks
@@ -29,10 +34,8 @@ parameter   :   expr;
 // Interface
 data    :   DATA_T  idseq   Semi;
 event   :   EVENT_T Identifier  LeftParen list RightParen Semi;
-service :   simpletypespecifier Identifier  LeftParen parameter RightParen Semi;
+service :   simpletypespecifier Identifier  LeftParen paralist RightParen Semi;
 // Rule
-
-
 list    :   LeftBrace exprseq  RightBrace
         |   LeftBrace RightBrace; // Empty list
 exprseq :   expr Comma exprseq
@@ -66,8 +69,8 @@ callExpr:   Identifier LeftParen paralist RightParen;
 numberLiteral:  Integerliteral|Floatingliteral;
 deadline:   numberLiteral;
 missRatio   :   numberLiteral;
-connectExpr :   connectExpr Colon Colon idExpr
-            |   connectExpr Colon Colon callExpr
+connectExpr :   connectExpr Doublecolon idExpr
+            |   connectExpr Doublecolon callExpr
             |   connectExpr Dot idExpr
             |   connectExpr Dot callExpr
             |   idExpr
@@ -197,12 +200,12 @@ qualifiedid
 
 nestednamespecifier
 :
-	'::'
-	| thetypename '::'
-	| namespacename '::'
-	| decltypespecifier '::'
-	| nestednamespecifier Identifier '::'
-	| nestednamespecifier Template? simpletemplateid '::'
+	Doublecolon
+	| thetypename Doublecolon
+	| namespacename Doublecolon
+	| decltypespecifier Doublecolon
+	| nestednamespecifier Identifier Doublecolon
+	| nestednamespecifier Template? simpletemplateid Doublecolon
 ;
 
 lambdaexpression
@@ -302,8 +305,8 @@ expressionlist
 
 pseudodestructorname
 :
-	nestednamespecifier? thetypename '::' '~' thetypename
-	| nestednamespecifier Template simpletemplateid '::' '~' thetypename
+	nestednamespecifier? thetypename Doublecolon '~' thetypename
+	| nestednamespecifier Template simpletemplateid Doublecolon '~' thetypename
 	| nestednamespecifier? '~' thetypename
 	| '~' decltypespecifier
 ;
@@ -336,8 +339,8 @@ unaryoperator
 
 newexpression
 :
-	'::'? New newplacement? newtypeid newinitializer?
-	| '::'? New newplacement? LeftParen thetypeid RightParen newinitializer?
+	Doublecolon? New newplacement? newtypeid newinitializer?
+	| Doublecolon? New newplacement? LeftParen thetypeid RightParen newinitializer?
 ;
 
 newplacement
@@ -370,8 +373,8 @@ newinitializer
 
 deleteexpression
 :
-	'::'? Delete castexpression
-	| '::'? Delete '[' ']' castexpression
+	Doublecolon? Delete castexpression
+	| Doublecolon? Delete '[' ']' castexpression
 ;
 
 noexceptexpression
@@ -868,7 +871,7 @@ qualifiednamespacespecifier
 usingdeclaration
 :
 	Using Typename? nestednamespecifier unqualifiedid Semi
-	| Using '::' unqualifiedid Semi
+	| Using Doublecolon unqualifiedid Semi
 ;
 
 usingdirective
@@ -926,7 +929,7 @@ attributetoken
 
 attributescopedtoken
 :
-	attributenamespace '::' Identifier
+	attributenamespace Doublecolon Identifier
 ;
 
 attributenamespace
