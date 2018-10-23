@@ -14,7 +14,7 @@ void upload () {
 double light = TL_Light.data();
 double sm = TL_Soil_Moisture . data () ; String url = "http://hostname/ul.php?"; url += String ( " light=" ) + String ( light ) ; url += String ( "&sm=" ) + String (sm) ; TL_WiFi . get ( url ) ;
 }
-endprogram } SD;
+ } SD;
 Policy DoorEvent { Interface:
 TL_Event Ev({"Open", "Close"}); Rule:
 If (SmartDoor::Gyro.last("z")>100) { Ev.trigger("Open");

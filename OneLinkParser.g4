@@ -8,15 +8,19 @@ unitseq :   importStmt  unitseq
         |
         ;
 importStmt  :   IMPORT  Stringliteral Semi;
-tinyApp :   TINYAPP   Identifier    MOBILE  LeftBrace  appBlocks    RightBrace idseq    Semi    #mobileAPP
-        |   TINYAPP   Identifier    CLOUD   LeftBrace  appBlocks    RightBrace idseq    Semi    #deviceAPP
-        |   TINYAPP   Identifier    LeftBrace  appBlocks   RightBrace   idseq  Semi             #deviceAPP
+tinyApp :   TINYAPP   Identifier    MOBILE  LeftBrace  mobileAppBlocks    RightBrace idseq    Semi    #mobileAPP
+        |   TINYAPP   Identifier    CLOUD   LeftBrace  deviceAppBlocks    RightBrace idseq    Semi    #deviceAPP
+        |   TINYAPP   Identifier    LeftBrace  deviceAppBlocks   RightBrace   idseq  Semi             #deviceAPP
         ;
 policy  :   POLICY    Identifier    LeftBrace policyBlocks RightBrace   idseq  Semi;
-appBlocks   :   interfaceBlock  appBlocks
-            |   programBlock    appBlocks
-            |
-            ;
+mobileAppBlocks :   interfaceBlock  mobileAppBlocks
+                |   mobileBlock     mobileAppBlocks
+                |
+                ;
+deviceAppBlocks :   interfaceBlock  deviceAppBlocks
+                |   programBlock    deviceAppBlocks
+                |
+                ;
 policyBlocks:   interfaceBlock  policyBlocks
             |   ruleBlock    policyBlocks
             |
@@ -24,9 +28,10 @@ policyBlocks:   interfaceBlock  policyBlocks
 idseq   :   Identifier  Comma   idseq
         |   Identifier
         ;
-interfaceBlock   :  INTERFACE Colon declarationseq;
-programBlock :  PROGRAMSTART translationunit;
-ruleBlock    :  RULE    Colon   stmtseq;    //TODO
+interfaceBlock  :   INTERFACE Colon declarationseq;
+programBlock    :   PROGRAMSTART    deviceTranslationunit;
+ruleBlock       :   RULE    Colon   stmtseq;    //TODO
+mobileBlock     :   PROGRAMSTART    mobileTranslationunit;
 paralist:   parameter paralist
         |
         ;
@@ -103,10 +108,41 @@ expr    :   list                            #listexpr
 
 
 // Mobile program
-type    :   BUTTON_T
-        |   TEXT_T
-        ;
+mobileTranslationunit
+:
+    ext_def_list
+;
 
+ext_def_list    : ext_def ext_def_list
+                |
+                ;
+ext_def         : simpletypespecifier ext_dec_list Semi
+                | simpletypespecifier func_dec compStmt
+                ;
+ext_dec_list    : var_dec
+                | var_dec Comma ext_dec_list
+                ;
+var_list    : simpletypespecifier var_dec
+            | simpletypespecifier var_dec Comma var_list
+            ;
+var_dec     : Identifier
+            | var_dec LeftBracket Integerliteral RightBracket
+            ;
+func_dec    : Identifier LeftParen var_list RightParen
+            | Identifier LeftParen RightParen
+            | Identifier Dot Identifier LeftParen var_list RightParen
+            | Identifier Dot Identifier LeftParen RightParen
+            ;
+def_list    : def def_list
+            |
+            ;
+def         : simpletypespecifier    dec_list    Semi;
+dec_list    : dec
+            | dec     Comma dec_list
+            ;
+dec     : var_dec
+        | var_dec Assign expr
+        ;
 // C++14 Grammar
 
 /*******************************************************************************
@@ -161,7 +197,7 @@ if($val.text.compareTo("0")!=0) throw new InputMismatchException(this);
  ******************************************************************************/
 
 /*Basic concepts*/
-translationunit
+deviceTranslationunit
 :
 	declarationseq?
 ;
