@@ -300,7 +300,6 @@ lambdadeclarator
 
 postfixexpression
 :
-	primaryexpression
 	| postfixexpression '[' expression ']'
 	| postfixexpression '[' bracedinitlist ']'
 	| postfixexpression LeftParen expressionlist? RightParen
@@ -347,10 +346,51 @@ pseudodestructorname
 	| '~' decltypespecifier
 ;
 
+logicalorexpression
+:
+    primaryexpression
+    | postfixexpression
+    | unaryexpression
+    | castexpression
+	| Sizeof '...' LeftParen Identifier RightParen
+	| Alignof LeftParen thetypeid RightParen
+	| noexceptexpression
+	| newexpression
+	| deleteexpression
+  	| LeftParen thetypeid RightParen logicalorexpression
+	| logicalorexpression '.*' logicalorexpression
+	| logicalorexpression '->*' logicalorexpression
+	| logicalorexpression Star logicalorexpression
+	| logicalorexpression Div logicalorexpression
+	| logicalorexpression Mod logicalorexpression
+	| logicalorexpression Plus logicalorexpression
+	| logicalorexpression Minus logicalorexpression
+	| logicalorexpression '<<' logicalorexpression
+	| logicalorexpression rightShift logicalorexpression
+	| logicalorexpression Less logicalorexpression
+	| logicalorexpression Greater logicalorexpression
+	| logicalorexpression LessEqual logicalorexpression
+	| logicalorexpression GreaterEqual logicalorexpression
+	| logicalorexpression Equal logicalorexpression
+	| logicalorexpression NotEqual logicalorexpression
+	| logicalorexpression '&' logicalorexpression
+	| logicalorexpression '^' logicalorexpression
+	| logicalorexpression '|' logicalorexpression
+	| logicalorexpression AndAnd logicalorexpression
+	| logicalorexpression OrOr logicalorexpression
+;
+conditionalexpression
+:
+	logicalorexpression '?' expression Colon assignmentexpression
+;
+assignmentexpression
+:
+	logicalorexpression assignmentoperator initializerclause
+	| throwexpression
+;
 unaryexpression
 :
-	postfixexpression
-	| '++' castexpression
+	'++' castexpression
 	| '--' castexpression
 	| unaryoperator castexpression
 	| Sizeof unaryexpression
@@ -420,96 +460,7 @@ noexceptexpression
 
 castexpression
 :
-	unaryexpression
 	| LeftParen thetypeid RightParen castexpression
-;
-
-pmexpression
-:
-	castexpression
-	| pmexpression '.*' castexpression
-	| pmexpression '->*' castexpression
-;
-
-multiplicativeexpression
-:
-	pmexpression
-	| multiplicativeexpression Star pmexpression
-	| multiplicativeexpression Div pmexpression
-	| multiplicativeexpression Mod pmexpression
-;
-
-additiveexpression
-:
-	multiplicativeexpression
-	| additiveexpression Plus multiplicativeexpression
-	| additiveexpression Minus multiplicativeexpression
-;
-
-shiftexpression
-:
-	additiveexpression
-	| shiftexpression '<<' additiveexpression
-	| shiftexpression rightShift additiveexpression
-;
-
-relationalexpression
-:
-	shiftexpression
-	| relationalexpression Less shiftexpression
-	| relationalexpression Greater shiftexpression
-	| relationalexpression LessEqual shiftexpression
-	| relationalexpression GreaterEqual shiftexpression
-;
-
-equalityexpression
-:
-	relationalexpression
-	| equalityexpression Equal relationalexpression
-	| equalityexpression NotEqual relationalexpression
-;
-
-andexpression
-:
-	equalityexpression
-	| andexpression '&' equalityexpression
-;
-
-exclusiveorexpression
-:
-	andexpression
-	| exclusiveorexpression '^' andexpression
-;
-
-inclusiveorexpression
-:
-	exclusiveorexpression
-	| inclusiveorexpression '|' exclusiveorexpression
-;
-
-logicalandexpression
-:
-	inclusiveorexpression
-	| logicalandexpression AndAnd inclusiveorexpression
-;
-
-logicalorexpression
-:
-	logicalandexpression
-	| logicalorexpression OrOr logicalandexpression
-;
-
-conditionalexpression
-:
-	logicalorexpression
-	| logicalorexpression '?' expression Colon assignmentexpression
-;
-
-assignmentexpression
-:
-	conditionalexpression
-	| logicalorexpression assignmentoperator initializerclause
-	| throwexpression
 ;
 
 assignmentoperator
