@@ -2,12 +2,12 @@ parser grammar OneLinkParser;
 options{ tokenVocab=OneLinkLexer; }
 // OneLink Grammar
 compliationUnit : (importStmt|tinyApp|policy)*;
-importStmt  :   IMPORT  StringLiteral SEMI;
-tinyApp :   TINYAPP   ID    MOBILE  LBRACE  appBlocks    RBRACE idseq    SEMI
-        |   TINYAPP   ID    CLOUD   LBRACE  appBlocks    RBRACE idseq    SEMI
-        |   TINYAPP   ID    LBRACE  appBlocks   RBRACE   idseq  SEMI
+importStmt  :   IMPORT  Stringliteral Semi;
+tinyApp :   TINYAPP   Identifier    MOBILE  LeftBrace  appBlocks    RightBrace idseq    Semi
+        |   TINYAPP   Identifier    CLOUD   LeftBrace  appBlocks    RightBrace idseq    Semi
+        |   TINYAPP   Identifier    LeftBrace  appBlocks   RightBrace   idseq  Semi
         ;
-policy  :   POLICY    ID    LBRACE policyBlocks RBRACE   idseq  SEMI;
+policy  :   POLICY    Identifier    LeftBrace policyBlocks RightBrace   idseq  Semi;
 appBlocks   :   interfaceBlock  appBlocks
             |   programBlock    appBlocks
             |
@@ -16,30 +16,32 @@ policyBlocks:   interfaceBlock  policyBlocks
             |   ruleBlock    policyBlocks
             |
             ;
-idseq   :   ID  COMMA   idseq
-        |   ID
+idseq   :   Identifier  Comma   idseq
+        |   Identifier
         ;
-interfaceBlock   :  INTERFACE COLON (data|event|service)*;
-programBlock :  PROGRAMSTART translationunit PROGRAMEND;
-ruleBlock    :  RULE    COLON   stmtseq;    //TODO
-data    :   DATA_T  ID  (COMMA ID)*   SEMI;
-event   :   EVENT_T ID  LPAREN list RPAREN SEMI;
-service :   type    ID  LPAREN RPAREN SEMI;   //TODO
-type    :   BOOL_T
-        |   CHAR_T
-        |   INT_T
-        |   FLOAT_T
-        |   DOUBLE_T
-        |   VOID_T
-        |   BUTTON_T
-        |   TEXT_T
+interfaceBlock   :  INTERFACE Colon declarationseq;
+programBlock :  PROGRAMSTART translationunit;
+ruleBlock    :  RULE    Colon   stmtseq;    //TODO
+paralist:   parameter paralist
+        |
         ;
-list    :   LBRACE expr (COMMA expr)*  RBRACE
-        |   LBRACE RBRACE; // Empty list
+parameter   :   expr;
+// Interface
+data    :   DATA_T  idseq   Semi;
+event   :   EVENT_T Identifier  LeftParen list RightParen Semi;
+service :   simpletypespecifier Identifier  LeftParen parameter RightParen Semi;
+// Rule
+
+
+list    :   LeftBrace exprseq  RightBrace
+        |   LeftBrace RightBrace; // Empty list
+exprseq :   expr Comma exprseq
+        |   expr
+        ;
 stmtseq :   stmt stmtseq
         |
         ;
-stmt    :   exprStmt    SEMI
+stmt    :   exprStmt    Semi
         |   ifStmt
         |   forStmt
         |   compStmt
@@ -48,62 +50,59 @@ exprStmt:   connectExpr
         |   allStmt
         |   anyStmt
         ;
-ifStmt  :   IF LPAREN expr RPAREN stmt ELSE stmt WITHIN LPAREN deadline COMMA missRatio RPAREN SEMI
-        |   IF LPAREN expr RPAREN stmt ELSE stmt
-        |   IF LPAREN expr RPAREN stmt WITHIN LPAREN deadline COMMA missRatio RPAREN SEMI
-        |   IF LPAREN expr RPAREN stmt
+ifStmt  :   IF LeftParen expr RightParen stmt ELSE stmt WITHIN LeftParen deadline Comma missRatio RightParen Semi
+        |   IF LeftParen expr RightParen stmt ELSE stmt
+        |   IF LeftParen expr RightParen stmt WITHIN LeftParen deadline Comma missRatio RightParen Semi
+        |   IF LeftParen expr RightParen stmt
         ;
-forStmt :   FOR LPAREN ID IN list RPAREN stmt;
-allStmt :   ALL LPAREN expr RPAREN;//TODO
-anyStmt :   ANY LPAREN expr RPAREN;//TODO
-compStmt:   LBRACE stmtseq RBRACE
+forStmt :   FOR LeftParen Identifier IN list RightParen stmt;
+allStmt :   ALL LeftParen expr RightParen;//TODO
+anyStmt :   ANY LeftParen expr RightParen;//TODO
+compStmt:   LeftBrace stmtseq RightBrace
         ;
-idExpr  :   ID;
-callExpr:   ID LPAREN paralist RPAREN;
-integerLiteral  : PLUS (Decimal | Hex | Octal)
-                | MINUS (Decimal | Hex | Octal)
-                | (Decimal | Hex | Octal)
-                ;
+idExpr  :   Identifier;
+callExpr:   Identifier LeftParen paralist RightParen;
 
-numberLiteral:  integerLiteral|FloatLiteral;
+numberLiteral:  Integerliteral|Floatingliteral;
 deadline:   numberLiteral;
 missRatio   :   numberLiteral;
-connectExpr :   connectExpr COLON COLON idExpr
-            |   connectExpr COLON COLON callExpr
-            |   connectExpr DOT idExpr
-            |   connectExpr DOT callExpr
+connectExpr :   connectExpr Colon Colon idExpr
+            |   connectExpr Colon Colon callExpr
+            |   connectExpr Dot idExpr
+            |   connectExpr Dot callExpr
             |   idExpr
             |   list
             ;
-expr    :   list                #listexpr
-        |   exprStmt            #stmtexpr
-        |   integerLiteral      #intexpr
-        |   FloatLiteral        #floatexpr
-        |   StringLiteral       #stringexpr
-        |   BoolLiteral         #boolexpr
-        |   LPAREN expr RPAREN  #parenexpr
-        |   NOT     expr        #notexpr
-        |   MINUS   expr        #minusexpr
-        |   expr    MUL expr    #mulexpr
-        |   expr    DIV expr    #divexpr
-        |   expr    MOD expr    #modexpr
-        |   expr    PLUS    expr#addexpr
-        |   expr    MINUS   expr#subexpr
-        |   expr    GT  expr    #gtexpr
-        |   expr    GE  expr    #geexpr
-        |   expr    EQ  expr    #eqexpr
-        |   expr    NEQ expr    #neqexpr
-        |   expr    LE  expr    #leexpr
-        |   expr    LT  expr    #ltexpr
-        |   expr    AND expr    #andexpr
-        |   expr    OR  expr    #orexpr
+expr    :   list                            #listexpr
+        |   exprStmt                        #stmtexpr
+        |   Integerliteral                  #intexpr
+        |   Floatingliteral                 #floatexpr
+        |   Stringliteral                   #stringexpr
+        |   booleanliteral                  #boolexpr
+        |   LeftParen expr RightParen       #parenexpr
+        |   Not     expr                    #notexpr
+        |   Minus   expr                    #minusexpr
+        |   expr    Star    expr            #mulexpr
+        |   expr    Div     expr            #divexpr
+        |   expr    Mod     expr            #modexpr
+        |   expr    Plus    expr            #addexpr
+        |   expr    Minus   expr            #subexpr
+        |   expr    Greater expr            #gtexpr
+        |   expr    GreaterEqual    expr    #geexpr
+        |   expr    Equal   expr            #eqexpr
+        |   expr    NotEqual    expr        #neqexpr
+        |   expr    LessEqual   expr        #leexpr
+        |   expr    Less    expr            #ltexpr
+        |   expr    AndAnd  expr            #andexpr
+        |   expr    OrOr    expr            #orexpr
         ;
 
-paralist:   parameter paralist
-        |
-        ;
-parameter   :   expr;
 
+
+// Mobile program
+type    :   BUTTON_T
+        |   TEXT_T
+        ;
 
 // C++14 Grammar
 
@@ -728,6 +727,10 @@ simpletypespecifier
 	| Double
 	| Void
 	| Auto
+	| DATA_T
+	| EVENT_T
+	| BUTTON_T
+	| TEXT_T
 	| decltypespecifier
 ;
 
@@ -1529,12 +1532,12 @@ userdefinedliteral
 //ext_def_list : ext_def ext_def_list
 //                |
 //                ;
-//ext_def : specifier ext_dec_list SEMI
-//            | specifier SEMI
+//ext_def : specifier ext_dec_list Semi
+//            | specifier Semi
 //            | specifier func_dec comp_st
 //            ;
 //ext_dec_list : var_dec
-//                | var_dec COMMA ext_dec_list
+//                | var_dec Comma ext_dec_list
 //                ;
 //
 //specifier : type
@@ -1559,7 +1562,7 @@ userdefinedliteral
 //            | ID LP RP
 //            ;
 //var_list : param_dec
-//            | param_dec COMMA var_list
+//            | param_dec Comma var_list
 //            ;
 //param_dec :specifier var_dec;
 //
@@ -1567,21 +1570,21 @@ userdefinedliteral
 //stmt_list : stmt stmt_list
 //            |
 //            ;
-//stmt : exp SEMI
+//stmt : exp Semi
 //        | comp_st
-//        | RETURN exp SEMI
+//        | RETURN exp Semi
 ////        | IF LP exp RP stmt
 //        | IF LP exp RP stmt ELSE stmt
 //        | WHILE LP exp RP stmt
-//        | FOR LP exp SEMI exp SEMI exp SEMI RP stmt
+//        | FOR LP exp Semi exp Semi exp Semi RP stmt
 //        ;
 //
 //def_list : def def_list
 //            |
 //            ;
-//def : specifier dec_list SEMI;
+//def : specifier dec_list Semi;
 //dec_list : dec
-//            | dec COMMA dec_list
+//            | dec Comma dec_list
 //            ;
 //dec : var_dec
 //        | var_dec ASSIGN exp

@@ -1,4 +1,6 @@
-void upload(); void setup () {
+void upload();
+bool a;
+void setup () {
 TL_WiFi . init () ;
 TL_WiFi . join ( " SSID " , "PASSWORD" ) ;
 TL_Light . setMeasuringRange (1 ,30000 , "LUX" ) ; TL_Light . setADCResolution (10) ;

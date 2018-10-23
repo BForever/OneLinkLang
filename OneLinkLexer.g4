@@ -1,11 +1,5 @@
 lexer grammar OneLinkLexer;
 // Types
-BOOL_T  :   'bool';
-INT_T   :   'int';
-FLOAT_T :   'float';
-DOUBLE_T:   'double';
-CHAR_T  :   'char';
-VOID_T  :   'void';
 BUTTON_T:   'UI_Button';
 TEXT_T  :   'UI_Text';
 DATA_T  :   'TL_Data';
@@ -16,8 +10,8 @@ TINYAPP :   'TinyApp';
 POLICY  :   'Policy';
 MOBILE  :   'Mobile';
 CLOUD   :   'Cloud';
-INTERFACE   :   'Interface';
-PROGRAMSTART    :   'Program' ':' -> mode(CPP);
+INTERFACE       :   'Interface';
+PROGRAMSTART    :   'Program' ':' ;
 RULE    :   'Rule';
 IF      :   'If';
 ELSE    :   'Else';
@@ -27,69 +21,50 @@ WITHIN  :   'Within';
 ALL     :   'All';
 ANY     :   'Any';
 
-// Operator
-ASSIGN  :   '=';
-PLUSASSIGN  :   '+=';
-GT      :   '>';
-LT      :   '<';
-GE      :   '>=';
-LE      :   '<=';
-EQ      :   '==';
-NEQ     :   '!=';
-PLUS    :   '+';
-MINUS   :   '-';
-MUL     :   '*';
-DIV     :   '/';
-MOD     :   '%';
-OR      :   '||';
-AND     :   '&&';
-NOT     :   '!';
-DOT     :   '.';
-
 // Value
-ID  :   (LETTER|'_')(LETTER|'_'|DIGIT)*;
-BoolLiteral :   TRUE|FALSE;
-TRUE    :   'true';
-FALSE   :   'false';
-StringLiteral  :   '"' (ESC|.)*?   '"';
-Decimal : [0] | [1-9][0-9]*;
-Hex : [0][xX][0-9a-fA-F]+;
-Octal : [0][0-7]+;
-fragment
-Lnum : [0-9]+;
-fragment
-Dnum : ([0-9]*'.'Lnum) | (Lnum'.'[0-9]*);
-FloatLiteral : [+\-]?((Lnum | Dnum) ([eE][+\-]?Lnum)?);
-
-// Extra
-WS  :   [ \t\r\n]+  -> skip;
-// Comments
-fragment
-BLOCKCOMMENT : '/*' .*? '*/';
-fragment
-LINECOMMENT : '//'.*? '\r'? '\n';
-
-COMMENT : (BLOCKCOMMENT | LINECOMMENT) -> skip;
-
-fragment
-ESC :   '\\"'|'\\\\';
-fragment
-LETTER  :   [a-zA-Z];
-
-COMMA   :   ',';
-SEMI    :   ';';
-COLON   :   ':';
-QUOTA   :   '"';
-LPAREN  :   '(';
-RPAREN  :   ')';
-LBRACE  :   '{';
-RBRACE  :   '}';
-/*Preprocessing directives*/
-mode CPP;
-PROGRAMEND
-:
-    [Ee][Nn][Dd][Pp][Rr][Oo][Gg][Rr][Aa][Mm] -> mode(DEFAULT_MODE)
-;
+//ID  :   (LETTER|'_')(LETTER|'_'|DIGIT)*;
+//BoolLiteral :   TRUE|FALSE;
+//TRUE    :   'true';
+//FALSE   :   'false';
+//StringLiteral  :   '"' (ESC|.)*?   '"';
+//Decimal : [0] | [1-9][0-9]*;
+//Hex : [0][xX][0-9a-fA-F]+;
+//Octal : [0][0-7]+;
+//fragment
+//Lnum : [0-9]+;
+//fragment
+//Dnum : ([0-9]*'.'Lnum) | (Lnum'.'[0-9]*);
+//FloatLiteral : [+\-]?((Lnum | Dnum) ([eE][+\-]?Lnum)?);
+//
+//// Extra
+//WS  :   [ \t\r\n]+  -> skip;
+//// Comments
+//fragment
+//BLOCKCOMMENT : '/*' .*? '*/';
+//fragment
+//LINECOMMENT : '//'.*? '\r'? '\n';
+//
+//COMMENT : (BLOCKCOMMENT | LINECOMMENT) -> skip;
+//
+//fragment
+//ESC :   '\\"'|'\\\\';
+//fragment
+//LETTER  :   [a-zA-Z];
+//
+//COMMA   :   ',';
+//SEMI    :   ';';
+//COLON   :   ':';
+//QUOTA   :   '"';
+//LPAREN  :   '(';
+//RPAREN  :   ')';
+//LBRACE  :   '{';
+//RBRACE  :   '}';
+///*Preprocessing directives*/
+//mode CPP;
+//PROGRAMEND
+//:
+//    [Ee][Nn][Dd][Pp][Rr][Oo][Gg][Rr][Aa][Mm] -> mode(DEFAULT_MODE)
+//;
 
 MultiLineMacro
 :

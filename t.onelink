@@ -4,7 +4,7 @@ bool TurnOnLED(); bool TurnOffLED(); Program:
 void setup () { TL_Connector.bind(TL_WiFi); TL_WiFi.join("SSID", "PASSWD"); LIGHT.bind(TL_Light); PIR.bind(TL_PIR);
 }
 bool TurnOnLED() { return TL_LED.turnOn(); } bool TurnOffLED() { return TL_LED.turnOff();}
-endprogram} SL1,SL2,SL3;
+} SL1,SL2,SL3;
 /*TinyApp ControlPanel@Mobile { Program:
 UI_Button B1,B2; UI_Text T1;
 void setup () {
