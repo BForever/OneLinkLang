@@ -14,11 +14,11 @@ tinyApp :   TINYAPP   Identifier    MOBILE  LeftBrace  mobileAppBlocks    RightB
         ;
 policy  :   POLICY    Identifier    LeftBrace policyBlocks RightBrace   idseq  Semi;
 mobileAppBlocks :   interfaceBlock  mobileAppBlocks
-                |   mobileBlock     mobileAppBlocks
+                |   mobileProgramBlock     mobileAppBlocks
                 |
                 ;
 deviceAppBlocks :   interfaceBlock  deviceAppBlocks
-                |   programBlock    deviceAppBlocks
+                |   deciveProgramBlock    deviceAppBlocks
                 |
                 ;
 policyBlocks:   interfaceBlock  policyBlocks
@@ -29,9 +29,9 @@ idseq   :   Identifier  Comma   idseq
         |   Identifier
         ;
 interfaceBlock  :   INTERFACE Colon declarationseq;
-programBlock    :   PROGRAMSTART    deviceTranslationunit;
-ruleBlock       :   RULE    Colon   stmtseq;    //TODO
-mobileBlock     :   PROGRAMSTART    mobileTranslationunit;
+ruleBlock       :   RULE    Colon   stmtseq;
+deciveProgramBlock  :   PROGRAM Colon   deviceTranslationunit;
+mobileProgramBlock  :   PROGRAM Colon   mobileTranslationunit;
 paralist:   parameter paralist
         |
         ;
@@ -64,8 +64,8 @@ ifStmt  :   IF LeftParen expr RightParen stmt ELSE stmt WITHIN LeftParen deadlin
         |   IF LeftParen expr RightParen stmt
         ;
 forStmt :   FOR LeftParen Identifier IN list RightParen stmt;
-allStmt :   ALL LeftParen expr RightParen;//TODO
-anyStmt :   ANY LeftParen expr RightParen;//TODO
+allStmt :   ALL LeftParen expr RightParen;
+anyStmt :   ANY LeftParen expr RightParen;
 compStmt:   LeftBrace stmtseq RightBrace
         ;
 idExpr  :   Identifier;
