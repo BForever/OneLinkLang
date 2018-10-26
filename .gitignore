@@ -1,8 +1,10 @@
 *.class
-*.java
 *.tokens
 *.interp
-
+*Lexer.java
+*BaseListener.java
+*ParserListener.java
+*Parser.java
 
 .DS_Store
 *.png
