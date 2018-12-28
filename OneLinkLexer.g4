@@ -996,7 +996,7 @@ Udsuffix
 
 Whitespace
 :
-	[ \t]+ -> skip
+	[ \t]+ -> channel(HIDDEN)
 ;
 
 Newline
@@ -1004,15 +1004,15 @@ Newline
 	(
 		'\r' '\n'?
 		| '\n'
-	) -> skip
+	) -> channel(HIDDEN)
 ;
 
 BlockComment
 :
-	'/*' .*? '*/' -> skip
+	'/*' .*? '*/' -> channel(HIDDEN)
 ;
 
 LineComment
 :
-	'//' ~[\r\n]* -> skip
+	'//' ~[\r\n]* -> channel(HIDDEN)
 ;
