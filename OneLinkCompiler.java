@@ -152,11 +152,11 @@ public class OneLinkCompiler {
         exec("sh ./main " + username + " Function.json");
     }
 
-    public int readBoardID(String username) {
+    public int readBoardID(String filename) {
         FileReader file;
         BufferedReader reader;
         try {
-            file = new FileReader("../user_log/" + username + "Information/temp/configuration/HardwareList.txt");
+            file = new FileReader(filename);
             reader = new BufferedReader(file);
 
             reader.readLine();
@@ -174,15 +174,15 @@ public class OneLinkCompiler {
         }
     }
 
-    public void genCode(int boardID, String username, String uploadFileName) throws Exception {
+    public void genCode(int boardID, String username, String uploadFileName,String hardwarePath,String configPath,
+                        String cmakePath,String inputSrc,String outputSrc,String buildDir,String libDir) throws Exception {
         System.out.println("Start generate code...");
         // Read hardware.json
-        JSONTokener tokener = new JSONTokener(new FileReader(new File("../user_log/" + username + "Information/temp/json" +
-                "/HardWare.json")));
+        JSONTokener tokener = new JSONTokener(new FileReader(new File(hardwarePath)));
         JSONObject hardware = new JSONObject(tokener);
         // Construct TL_Config.h
         String targetDirectory = "";
-        FileWriter configWriter = new FileWriter(targetDirectory + "/TL_Config.h", false);
+        FileWriter configWriter = new FileWriter(configPath, false);
         configWriter.write("#ifndef TL_CONFIG_H\r\n");
         configWriter.write("#define TL_CONFIG_H\r\n");
         configWriter.write("#include \"TL_Device_ID.h\"\r\n");
@@ -194,18 +194,13 @@ public class OneLinkCompiler {
         String Platform = "";
         String CPPList = "";
 
-        FileWriter srcWriter = new FileWriter(targetDirectory + "/TL_Config.h", false);
-        String srcCPP = "../user_log/" + username + "Information/temp/" + uploadFileName + '/' + uploadFileName + ".ino";
+        FileWriter srcWriter = new FileWriter(outputSrc, false);
         switch (boardID) {
             case 1002: {
-                String command = "cp ../user_log/" + username + "Information/temp/filtered/" + uploadFileName + ".cpp " +
-                        "../user_log/" + username + "Information/temp/" + uploadFileName + '/' + uploadFileName + ".ino";
-                exec(command);
-
                 configWriter.write("#define PLATFORM 1\r\n");
                 configWriter.write("#define BOARD 1002\r\n");
 
-                String srcStr = readFromFile(srcCPP);
+                String srcStr = readFromFile(inputSrc);
                 srcWriter.write("#include \"TL_Libraries.h\"\r\n");
                 srcWriter.write(srcStr);
                 srcWriter.close();
@@ -217,11 +212,11 @@ public class OneLinkCompiler {
         // Platform
         switch (Platform) {
             case "Arduino": {
-                exec("cp ../Lib/Arduino/TinyLink/* ../user_log/" + username + "Information/temp/sketch");
+                exec("cp "+libDir+"/Arduino/TinyLink/* "+buildDir);
             }
         }
         // Hardware TODO
-        /// Function TODO
+        /// Function TODO Beagle_Bone...
         try {
             JSONObject board = (JSONObject) hardware.get("Board");
             JSONArray Functions = (JSONArray) board.get("Function");
@@ -260,7 +255,7 @@ public class OneLinkCompiler {
                             module.toString().toUpperCase() + "\r\n");
                     exec("cp ../Lib/" + Platform + "/TL_" + function.toString().toUpperCase() + '/' +
                             module.toString().toUpperCase() + "/* " + "../user_log/" + username +
-                            "Information/temp" + "/sketch -r");
+                            "Information/temp/sketch -r");
 
 
                     if (item.get("Form").toString().toUpperCase().equals("PORT") &&
@@ -297,14 +292,15 @@ public class OneLinkCompiler {
     static public void main(String args[]) throws Exception {
         OneLinkCompiler compiler = new OneLinkCompiler(args[0]);
 //        compiler.debug=true;
-//        compiler.writeToFile(compiler.extractHardwareDemand().toString(),"../share/Function.json");
+//        compiler.writeToFile(compiler.extractHardwareDemand().toString(),"Function.json");
 //        System.out.println(compiler.extractHardwareDemand());
+//        compiler.exec("./main Function.json Hardware.json HardwareList.txt connection.jpg connection.txt");
 //        System.out.println(compiler.extractRecommandation("board", ""));
-//        System.out.println(compiler.readBoardID("fhcfhc"));
-        JSONTokener tokener = new JSONTokener(new FileReader(new File("../user_log/fhcfhcInformation/temp/json" +
-                "/HardWare.json")));
-        JSONObject hardware = new JSONObject(tokener);
-        JSONObject board;
+        int boardID = compiler.readBoardID("./HardwareList.txt");
+        System.out.println(boardID);
+
+
+
 
     }
 }
