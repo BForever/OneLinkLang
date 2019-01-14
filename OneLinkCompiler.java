@@ -139,17 +139,27 @@ public class OneLinkCompiler {
         return recommand;
     }
 
-    public void exec(String cmd) {
+    public void exec(String []cmd) {
         try {
             Process process = Runtime.getRuntime().exec(cmd);
+            InputStream stderr = process.getErrorStream ();
+            InputStream stdout = process.getInputStream ();
+
+            BufferedReader outreader = new BufferedReader (new InputStreamReader(stdout));
+            BufferedReader errreader = new BufferedReader (new InputStreamReader(stderr));
             process.waitFor();
+            String line;
+
+            while ((line = outreader.readLine ()) != null) {
+                System.out.println ("Stdout: " + line);
+            }
+            while ((line = errreader.readLine ()) != null) {
+                System.out.println ("Stderr: " + line);
+            }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    public void generateHardware(String username) {
-        exec("sh ./main " + username + " Function.json");
     }
 
     public int readBoardID(String filename) {
@@ -174,15 +184,26 @@ public class OneLinkCompiler {
         }
     }
 
-    public void genCode(int boardID, String username, String uploadFileName,String hardwarePath,String configPath,
-                        String cmakePath,String inputSrc,String outputSrc,String buildDir,String libDir) throws Exception {
+    String getFileName(String filePath) {
+        String[] strs = filePath.split("/");
+        return strs[strs.length - 1];
+    }
+
+    void createDirectory(String dirPath){
+        File dir = new File(dirPath);
+        if(!dir.exists()||!dir.isDirectory()){
+            dir.mkdirs();
+        }
+    }
+
+    public void genCode(int boardID, String hardwarePath, String inputSrc, String buildDir, String libDir) throws Exception {
         System.out.println("Start generate code...");
         // Read hardware.json
         JSONTokener tokener = new JSONTokener(new FileReader(new File(hardwarePath)));
         JSONObject hardware = new JSONObject(tokener);
         // Construct TL_Config.h
-        String targetDirectory = "";
-        FileWriter configWriter = new FileWriter(configPath, false);
+        createDirectory(buildDir);
+        FileWriter configWriter = new FileWriter(buildDir + "/TL_Config.h", false);
         configWriter.write("#ifndef TL_CONFIG_H\r\n");
         configWriter.write("#define TL_CONFIG_H\r\n");
         configWriter.write("#include \"TL_Device_ID.h\"\r\n");
@@ -194,6 +215,7 @@ public class OneLinkCompiler {
         String Platform = "";
         String CPPList = "";
 
+        String outputSrc = buildDir + "/" + getFileName(inputSrc);
         FileWriter srcWriter = new FileWriter(outputSrc, false);
         switch (boardID) {
             case 1002: {
@@ -212,7 +234,7 @@ public class OneLinkCompiler {
         // Platform
         switch (Platform) {
             case "Arduino": {
-                exec("cp "+libDir+"/Arduino/TinyLink/* "+buildDir);
+                exec(new String[]{"sh","-c","cp " + libDir + "/Arduino/TinyLink/* " + buildDir});
             }
         }
         // Hardware TODO
@@ -226,20 +248,19 @@ public class OneLinkCompiler {
                 Object module = Modules.get(i);
                 configWriter.write("#define TINYLINK_" + function.toString().toUpperCase() + " " +
                         module.toString().toUpperCase() + "\r\n");
-                exec("cp ../Lib/" + Platform + "/TL_" + function.toString().toUpperCase() + '/' +
-                        module.toString().toUpperCase() + "/* " + "../user_log/" + username +
-                        "Information/temp" + "/sketch -r");
+                exec(new String[]{"sh","-c","cp "+ libDir + "/" + Platform + "/TL_" + function.toString().toUpperCase() + '/' +
+                        module.toString().toUpperCase() + "/*" + " " + buildDir + " -r"});
             }
         } catch (JSONException e) {
             System.out.println("No board information");
-            e.printStackTrace();
+//            e.printStackTrace();
         }
         /// Shield connection TODO
         try {
             JSONObject shieldConnection = (JSONObject) hardware.get("ShieldConnection");
         } catch (JSONException e) {
             System.out.println("No ShieldConnection information");
-            e.printStackTrace();
+//            e.printStackTrace();
         }
         /// Device connection
         try {
@@ -253,9 +274,9 @@ public class OneLinkCompiler {
                     Object module = Modules.get(j);
                     configWriter.write("#define TINYLINK_" + function.toString().toUpperCase() + " " +
                             module.toString().toUpperCase() + "\r\n");
-                    exec("cp ../Lib/" + Platform + "/TL_" + function.toString().toUpperCase() + '/' +
-                            module.toString().toUpperCase() + "/* " + "../user_log/" + username +
-                            "Information/temp/sketch -r");
+                    exec(new String[]{"sh",
+                            "-c", "cp " + libDir + "/" + Platform + "/TL_" + function.toString().toUpperCase() + '/' +
+                            module.toString().toUpperCase() + "/*" + " " + buildDir + " -r"});
 
 
                     if (item.get("Form").toString().toUpperCase().equals("PORT") &&
@@ -281,8 +302,7 @@ public class OneLinkCompiler {
         configWriter.close();
 
         // CMake
-        FileWriter CMakeFile = new FileWriter(new File("../user_log/" + username + "Information/temp/" + uploadFileName +
-                "/Compile.txt"));
+        FileWriter CMakeFile = new FileWriter(new File(buildDir + "/Compile.txt"));
         CMakeFile.write(CPPList + ")\r\n");
         CMakeFile.close();
 
@@ -291,16 +311,15 @@ public class OneLinkCompiler {
 
     static public void main(String args[]) throws Exception {
         OneLinkCompiler compiler = new OneLinkCompiler(args[0]);
-//        compiler.debug=true;
-//        compiler.writeToFile(compiler.extractHardwareDemand().toString(),"Function.json");
+        compiler.debug=true;
+        compiler.writeToFile(compiler.extractHardwareDemand().toString(),"Function.json");
 //        System.out.println(compiler.extractHardwareDemand());
-//        compiler.exec("./main Function.json Hardware.json HardwareList.txt connection.jpg connection.txt");
+        compiler.exec(new String[]{"./main", "Function.json",
+                "Hardware.json", "HardwareList.txt", "connection.jpg", "connection.txt"});
 //        System.out.println(compiler.extractRecommandation("board", ""));
         int boardID = compiler.readBoardID("./HardwareList.txt");
-        System.out.println(boardID);
-
-
-
+        compiler.genCode(boardID,"Hardware.json","filtered.cpp","build","../Lib");
+//        System.out.println(boardID);
 
     }
 }
