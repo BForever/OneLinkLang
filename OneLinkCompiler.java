@@ -4,6 +4,7 @@ import org.antlr.v4.runtime.tree.*;
 import org.json.*;
 
 import java.io.*;
+import java.nio.charset.Charset;
 import java.util.List;
 
 public class OneLinkCompiler {
@@ -11,6 +12,11 @@ public class OneLinkCompiler {
     ParseTree tree;
     ParseTreeWalker walker;
     boolean debug = false;
+
+    static final String ARDUINO_COMPILOR = "/home/freg/arduino-1.6.9/arduino";    // Arduino compilor location
+    static final String RPI_COMPILOR = "/home/freg/gcc-linaro-arm-linux-gnueabihf-raspbian/bin/arm-linux-gnueabihf-g++";  // Raspberry Pi compilor location
+    static final String BBB_COMPILOR = "/home/freg/gcc-linaro-arm-linux-gnueabihf-4.8/bin/arm-linux-gnueabihf-g++";       // BeagleBone compilor location
+    static final String HUMMING_COMPILOR = "/home/freg/gcc-linaro-arm-linux-gnueabihf-4.8/bin/arm-linux-gnueabihf-g++";   // HummingBoard compilor location
 
     void writeToFile(String contents, String fileName) {
         File file = null;
@@ -139,22 +145,28 @@ public class OneLinkCompiler {
         return recommand;
     }
 
-    public void exec(String []cmd) {
+    public void exec(String[] cmd) {
         try {
             Process process = Runtime.getRuntime().exec(cmd);
-            InputStream stderr = process.getErrorStream ();
-            InputStream stdout = process.getInputStream ();
+            InputStream stderr = process.getErrorStream();
+            InputStream stdout = process.getInputStream();
 
-            BufferedReader outreader = new BufferedReader (new InputStreamReader(stdout));
-            BufferedReader errreader = new BufferedReader (new InputStreamReader(stderr));
+            BufferedReader outreader = new BufferedReader(new InputStreamReader(stdout));
+            BufferedReader errreader = new BufferedReader(new InputStreamReader(stderr));
             process.waitFor();
             String line;
 
-            while ((line = outreader.readLine ()) != null) {
-                System.out.println ("Stdout: " + line);
+
+            System.out.print("executing:");
+            for (String i : cmd) {
+                System.out.print(" " + i);
             }
-            while ((line = errreader.readLine ()) != null) {
-                System.out.println ("Stderr: " + line);
+            System.out.print("\n");
+            while ((line = outreader.readLine()) != null) {
+                System.out.println(line);
+            }
+            while ((line = errreader.readLine()) != null) {
+                System.out.println(line);
             }
 
         } catch (Exception e) {
@@ -189,9 +201,9 @@ public class OneLinkCompiler {
         return strs[strs.length - 1];
     }
 
-    void createDirectory(String dirPath){
+    void createDirectory(String dirPath) {
         File dir = new File(dirPath);
-        if(!dir.exists()||!dir.isDirectory()){
+        if (!dir.exists() || !dir.isDirectory()) {
             dir.mkdirs();
         }
     }
@@ -234,7 +246,7 @@ public class OneLinkCompiler {
         // Platform
         switch (Platform) {
             case "Arduino": {
-                exec(new String[]{"sh","-c","cp " + libDir + "/Arduino/TinyLink/* " + buildDir});
+                exec(new String[]{"sh", "-c", "cp " + libDir + "/Arduino/TinyLink/* " + buildDir});
             }
         }
         // Hardware TODO
@@ -248,7 +260,7 @@ public class OneLinkCompiler {
                 Object module = Modules.get(i);
                 configWriter.write("#define TINYLINK_" + function.toString().toUpperCase() + " " +
                         module.toString().toUpperCase() + "\r\n");
-                exec(new String[]{"sh","-c","cp "+ libDir + "/" + Platform + "/TL_" + function.toString().toUpperCase() + '/' +
+                exec(new String[]{"sh", "-c", "cp " + libDir + "/" + Platform + "/TL_" + function.toString().toUpperCase() + '/' +
                         module.toString().toUpperCase() + "/*" + " " + buildDir + " -r"});
             }
         } catch (JSONException e) {
@@ -309,16 +321,27 @@ public class OneLinkCompiler {
         System.out.println("Code generated.");
     }
 
+    void compile(int boardID, String targetDir, String inputSrc) {
+        createDirectory(targetDir);
+        switch (boardID) {
+            case 1002: {
+                exec(new String[]{ARDUINO_COMPILOR, "--pref", "build.path=" + targetDir, "--board", "arduino:avr:uno"
+                        , "--verify", inputSrc, "2>&1"});
+            }
+        }
+    }
+
     static public void main(String args[]) throws Exception {
         OneLinkCompiler compiler = new OneLinkCompiler(args[0]);
-        compiler.debug=true;
-        compiler.writeToFile(compiler.extractHardwareDemand().toString(),"Function.json");
+        compiler.debug = true;
+        compiler.writeToFile(compiler.extractHardwareDemand().toString(), "Function.json");
 //        System.out.println(compiler.extractHardwareDemand());
         compiler.exec(new String[]{"./main", "Function.json",
                 "Hardware.json", "HardwareList.txt", "connection.jpg", "connection.txt"});
 //        System.out.println(compiler.extractRecommandation("board", ""));
         int boardID = compiler.readBoardID("./HardwareList.txt");
-        compiler.genCode(boardID,"Hardware.json","filtered.cpp","build","../Lib");
+        compiler.genCode(boardID, "Hardware.json", "filtered.cpp", "build", "../Lib");
+        compiler.compile(boardID,"target","build/filtered.cpp");
 //        System.out.println(boardID);
 
     }
