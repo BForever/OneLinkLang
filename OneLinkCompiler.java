@@ -5,7 +5,11 @@ import org.json.*;
 
 import java.io.*;
 import java.nio.charset.Charset;
+import java.security.PrivateKey;
+import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 public class OneLinkCompiler {
     CommonTokenStream tokens;
@@ -13,7 +17,8 @@ public class OneLinkCompiler {
     ParseTreeWalker walker;
     boolean debug = false;
 
-    static final String ARDUINO_COMPILOR = "/home/freg/arduino-1.6.9/arduino";    // Arduino compilor location
+    static final String ARDUINO_COMPILOR = "/home/freg/share/arduino-1.8.8/arduino";    // Arduino compilor location
+    //    static final String ARDUINO_COMPILOR = "/home/freg/arduino-1.6.9/arduino";
     static final String RPI_COMPILOR = "/home/freg/gcc-linaro-arm-linux-gnueabihf-raspbian/bin/arm-linux-gnueabihf-g++";  // Raspberry Pi compilor location
     static final String BBB_COMPILOR = "/home/freg/gcc-linaro-arm-linux-gnueabihf-4.8/bin/arm-linux-gnueabihf-g++";       // BeagleBone compilor location
     static final String HUMMING_COMPILOR = "/home/freg/gcc-linaro-arm-linux-gnueabihf-4.8/bin/arm-linux-gnueabihf-g++";   // HummingBoard compilor location
@@ -80,7 +85,7 @@ public class OneLinkCompiler {
         walker.walk(extractor, tree);
 
         // Generate filtered code
-        writeToFile(extractor.filtered, "filtered.cpp");
+        writeToFile(extractor.filtered, "sketch.ino");
 
         JSONArray requirements = new JSONArray();
 
@@ -145,7 +150,8 @@ public class OneLinkCompiler {
         return recommand;
     }
 
-    public void exec(String[] cmd) {
+    public String exec(String[] cmd) {
+        String output = "";
         try {
             Process process = Runtime.getRuntime().exec(cmd);
             InputStream stderr = process.getErrorStream();
@@ -169,8 +175,60 @@ public class OneLinkCompiler {
                 System.out.println(line);
             }
 
+
         } catch (Exception e) {
             e.printStackTrace();
+        }
+        return output;
+    }
+
+    public void exec_gui(String[] cmd) {
+        try {
+            Process process = Runtime.getRuntime().exec(cmd, new String[]{"DISPLAY=:1"});
+            InputStream stderr = process.getErrorStream();
+            InputStream stdout = process.getInputStream();
+
+            BufferedReader outreader = new BufferedReader(new InputStreamReader(stdout));
+            BufferedReader errreader = new BufferedReader(new InputStreamReader(stderr));
+
+            String line;
+
+
+            System.out.print("executing:");
+            for (String i : cmd) {
+                System.out.print(" " + i);
+            }
+            System.out.print("\n");
+            while ((line = outreader.readLine()) != null) {
+                System.out.println(line);
+            }
+            while ((line = errreader.readLine()) != null) {
+                System.out.println(line);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Excuting shell command
+    public String shell(String cmd) {
+        String[] sh = new String[]{"sh", "-c", ""};
+        sh[2] = cmd;
+        return exec(sh);
+    }
+
+    public void shell_gui(String cmd) {
+        String[] sh = new String[]{"sh", "-c", ""};
+        sh[2] = cmd;
+        exec_gui(sh);
+    }
+
+    private char upper(char lower) {
+        if (lower >= 'a' && lower <= 'z') {
+            return (char) ('A' + lower - 'a');
+        } else {
+            return lower;
         }
     }
 
@@ -215,6 +273,7 @@ public class OneLinkCompiler {
         JSONObject hardware = new JSONObject(tokener);
         // Construct TL_Config.h
         createDirectory(buildDir);
+        FileWriter pinConfigWriter = new FileWriter(buildDir + "/TL_UserPinConfig.h");
         FileWriter configWriter = new FileWriter(buildDir + "/TL_Config.h", false);
         configWriter.write("#ifndef TL_CONFIG_H\r\n");
         configWriter.write("#define TL_CONFIG_H\r\n");
@@ -230,6 +289,18 @@ public class OneLinkCompiler {
         String outputSrc = buildDir + "/" + getFileName(inputSrc);
         FileWriter srcWriter = new FileWriter(outputSrc, false);
         switch (boardID) {
+            case 1001: {
+                configWriter.write("#define PLATFORM 2\r\n");
+                configWriter.write("#define BOARD 1001\r\n");
+
+                String srcStr = readFromFile(inputSrc);
+                srcWriter.write("#include \"TL_Libraries.h\"\r\n");
+                srcWriter.write(srcStr);
+                srcWriter.close();
+
+                Platform = "LinkIt";
+                break;
+            }
             case 1002: {
                 configWriter.write("#define PLATFORM 1\r\n");
                 configWriter.write("#define BOARD 1002\r\n");
@@ -242,15 +313,220 @@ public class OneLinkCompiler {
                 Platform = "Arduino";
                 break;
             }
+            case 1003: {
+                configWriter.write("#define PLATFORM 4\r\n");
+                configWriter.write("#define BOARD 1003\r\n");
+
+                String srcStr = readFromFile(inputSrc);
+                srcWriter.write("#include \"Arduino.h\"\r\n");
+                srcWriter.write(srcStr);
+                srcWriter.close();
+
+                Platform = "Raspberry_Pi";
+                break;
+            }
+            case 1004: {
+                pinConfigWriter.write("#ifndef TL_USERPINCONFIG_H\r\n");
+                pinConfigWriter.write("#define TL_USERPINCONFIG_H\r\n");
+                configWriter.write("#define PLATFORM 3\r\n");
+                configWriter.write("#define BOARD 1004\r\n");
+
+                String srcStr = readFromFile(inputSrc);
+                srcWriter.write("#include \"Arduino.h\"\r\n");
+                srcWriter.write(srcStr);
+                srcWriter.close();
+
+                Platform = "Beagle_Bone";
+                break;
+            }
+            case 1005: {
+                pinConfigWriter.write("#ifndef TL_USERPINCONFIG_H\r\n");
+                pinConfigWriter.write("#define TL_USERPINCONFIG_H\r\n");
+                configWriter.write("#define PLATFORM 3\r\n");
+                configWriter.write("#define BOARD 1005\r\n");
+
+                String srcStr = readFromFile(inputSrc);
+                srcWriter.write("#include \"Arduino.h\"\r\n");
+                srcWriter.write(srcStr);
+                srcWriter.close();
+
+                Platform = "Beagle_Bone";
+                break;
+            }
+            case 1006: {
+                pinConfigWriter.write("#ifndef TL_USERPINCONFIG_H\r\n");
+                pinConfigWriter.write("#define TL_USERPINCONFIG_H\r\n");
+                configWriter.write("#define PLATFORM 3\r\n");
+                configWriter.write("#define BOARD 1006\r\n");
+
+                String srcStr = readFromFile(inputSrc);
+                srcWriter.write("#include \"Arduino.h\"\r\n");
+                srcWriter.write(srcStr);
+                srcWriter.close();
+
+                Platform = "Beagle_Bone";
+                break;
+            }
+            case 1007: {
+                configWriter.write("#define PLATFORM 1\r\n");
+                configWriter.write("#define BOARD 1007\r\n");
+
+                String srcStr = readFromFile(inputSrc);
+                srcWriter.write("#include \"TL_Libraries.h\"\r\n");
+                srcWriter.write(srcStr);
+                srcWriter.close();
+
+                Platform = "Arduino";
+                break;
+            }
+            case 1008: {
+                configWriter.write("#define PLATFORM 1\r\n");
+                configWriter.write("#define BOARD 1008\r\n");
+
+                String srcStr = readFromFile(inputSrc);
+                srcWriter.write("#include \"TL_Libraries.h\"\r\n");
+                srcWriter.write(srcStr);
+                srcWriter.close();
+
+                Platform = "Arduino";
+                break;
+            }
+            case 1009: {
+                configWriter.write("#define PLATFORM 1\r\n");
+                configWriter.write("#define BOARD 1009\r\n");
+
+                String srcStr = readFromFile(inputSrc);
+                srcWriter.write("#include \"TL_Libraries.h\"\r\n");
+                srcWriter.write(srcStr);
+                srcWriter.close();
+
+                Platform = "Arduino";
+                break;
+            }
+            case 1010: {
+                configWriter.write("#define PLATFORM 1\r\n");
+                configWriter.write("#define BOARD 1010\r\n");
+
+                String srcStr = readFromFile(inputSrc);
+                srcWriter.write("#include \"TL_Libraries.h\"\r\n");
+                srcWriter.write(srcStr);
+                srcWriter.close();
+
+                Platform = "Arduino";
+                break;
+            }
+            case 1011: {
+                configWriter.write("#define PLATFORM 5\r\n");
+                configWriter.write("#define BOARD 1011\r\n");
+
+                String srcStr = readFromFile(inputSrc);
+                srcWriter.write("#include \"TL_Libraries.h\"\r\n");
+                srcWriter.write(srcStr);
+                srcWriter.close();
+
+                Platform = "Mbed";
+                break;
+            }
+            case 1012: {
+                configWriter.write("#define PLATFORM 6\r\n");
+                configWriter.write("#define BOARD 1012\r\n");
+
+                String srcStr = readFromFile(inputSrc);
+                srcWriter.write("#include \"TL_Libraries.h\"\r\n");
+                srcWriter.write(srcStr);
+                srcWriter.close();
+
+                Platform = "AliOS";
+                break;
+            }
+            case 1013: {
+                configWriter.write("#define PLATFORM 7\r\n");
+                configWriter.write("#define BOARD 1013\r\n");
+
+                String srcStr = readFromFile(inputSrc);
+                srcWriter.write("#include \"Arduino.h\"\r\n");
+                srcWriter.write(srcStr);
+                srcWriter.close();
+
+                Platform = "Humming";
+                break;
+            }
+            default: {
+                System.out.println("Unknown Platform.");
+                return;
+            }
         }
         // Platform
         switch (Platform) {
             case "Arduino": {
-                exec(new String[]{"sh", "-c", "cp " + libDir + "/Arduino/TinyLink/* " + buildDir});
+                exec(new String[]{"sh", "-c", "cp -r " + libDir + "Arduino/TinyLink/* " + buildDir});
+                break;
+            }
+            case "LinkIt": {
+                exec(new String[]{"sh", "-c", "cp -r " + libDir + "LinkIt/TinyLink/* " + buildDir});
+                break;
+            }
+            case "Beagle_Bone": {
+                CPPList = "src = (sketch";
+                exec(new String[]{"sh", "-c", "cp -r " + libDir + "Beagle_Bone/TinyLink/* " + buildDir});
+                exec(new String[]{"sh", "-c", "cp -r " + libDir + "Beagle_Bone/library/* " + buildDir});
+                String[] coreCpps =
+                        shell("ls " + libDir + Platform + "library/*.cpp | xargs").split(" ");
+                for (String coreCpp : coreCpps) {
+                    String[] temp1 = coreCpp.split("/");
+                    String temp2 = temp1[temp1.length - 1].split(".cpp")[0].strip();
+                    if (!CPPList.contains(temp2)) {
+                        CPPList += " " + temp2;
+                    }
+                }
+                break;
+            }
+            case "Humming": {
+                CPPList = "src = (sketch";
+                exec(new String[]{"sh", "-c", "cp -r " + libDir + "Humming/TinyLink/* " + buildDir});
+                exec(new String[]{"sh", "-c", "cp -r " + libDir + "Humming/library/* " + buildDir});
+                String[] coreCpps =
+                        shell("ls " + libDir + Platform + "library/*.cpp | xargs").split(" ");
+                for (String coreCpp : coreCpps) {
+                    String[] temp1 = coreCpp.split("/");
+                    String temp2 = temp1[temp1.length - 1].split(".cpp")[0].strip();
+                    if (!CPPList.contains(temp2)) {
+                        CPPList += " " + temp2;
+                    }
+                }
+                break;
+            }
+            case "Raspberry_Pi": {
+                CPPList = "src = (sketch";
+                exec(new String[]{"sh", "-c", "cp -r " + libDir + "Raspberry_Pi/TinyLink/* " + buildDir});
+                exec(new String[]{"sh", "-c", "cp -r " + libDir + "Raspberry_Pi/library/* " + buildDir});
+                String[] coreCpps =
+                        shell("ls " + libDir + Platform + "library/*.cpp | xargs").split(" ");
+                for (String coreCpp : coreCpps) {
+                    String[] temp1 = coreCpp.split("/");
+                    String temp2 = temp1[temp1.length - 1].split(".cpp")[0].strip();
+                    if (!CPPList.contains(temp2)) {
+                        CPPList += " " + temp2;
+                    }
+                }
+                break;
+            }
+            case "Mbed": {
+                exec(new String[]{"sh", "-c", "cp -r " + libDir + "Mbed/TinyLink/* " + buildDir});
+                exec(new String[]{"sh", "-c", "cp -r " + libDir + "Mbed/library/* " + buildDir});
+                exec(new String[]{"sh", "-c", "cp -r " + libDir + "Mbed/.temp/* " + buildDir});
+                exec(new String[]{"sh", "-c", "cp -r " + libDir + "Mbed/.mbed/* " + buildDir});
+                break;
+            }
+            case "AliOS": {
+                exec(new String[]{"sh", "-c", "cp -r " + libDir + "AliOS/TinyLink/* " + buildDir});
+                exec(new String[]{"sh", "-c", "cp -r " + libDir + "AliOS/library/* " + buildDir});
+                exec(new String[]{"sh", "-c", "cp -r " + libDir + "AliOS/sketch/* " + buildDir});
+                break;
             }
         }
-        // Hardware TODO
-        /// Function TODO Beagle_Bone...
+        // Hardware
+        /// Function
         try {
             JSONObject board = (JSONObject) hardware.get("Board");
             JSONArray Functions = (JSONArray) board.get("Function");
@@ -260,53 +536,567 @@ public class OneLinkCompiler {
                 Object module = Modules.get(i);
                 configWriter.write("#define TINYLINK_" + function.toString().toUpperCase() + " " +
                         module.toString().toUpperCase() + "\r\n");
-                exec(new String[]{"sh", "-c", "cp " + libDir + "/" + Platform + "/TL_" + function.toString().toUpperCase() + '/' +
-                        module.toString().toUpperCase() + "/*" + " " + buildDir + " -r"});
+                exec(new String[]{"sh", "-c",
+                        "cp -r " + libDir + Platform + "/TL_" + function.toString().toUpperCase() + '/' +
+                                module.toString().toUpperCase() + "/*" + " " + buildDir});
+                if (Platform.equals("Beagle_Bone") || Platform.equals("Raspberry_Pi") || Platform.equals("Humming")) {
+                    String[] externalCpps =
+                            shell("ls " + libDir + Platform + "/TL_" + function.toString().toUpperCase()
+                                    + "/" + module.toString().toUpperCase() + "/*.cpp | xargs").split(" ");
+                    for (String externalCpp : externalCpps) {
+                        String[] temp1 = externalCpp.split("/");
+                        String temp2 = temp1[temp1.length - 1].split(".cpp")[0].strip();
+                        if (!CPPList.contains(temp2)) {
+                            CPPList += " " + temp2;
+                        }
+                    }
+                    if (function.toString().equalsIgnoreCase("WIFI")) {
+                        LibCurl = true;
+                    }
+                    if (function.toString().equalsIgnoreCase("VOICE")) {
+                        LibSphinx = true;
+                    }
+                }
             }
         } catch (JSONException e) {
             System.out.println("No board information");
 //            e.printStackTrace();
         }
-        /// Shield connection TODO
-        try {
-            JSONObject shieldConnection = (JSONObject) hardware.get("ShieldConnection");
-        } catch (JSONException e) {
+        /// Shield connection
+        if (hardware.has("ShieldConnection")) {
+            JSONArray shieldConnection = (JSONArray) hardware.get("ShieldConnection");
+            for (int i = 0; i < shieldConnection.length(); i++) {
+                JSONObject shieldItem = (JSONObject) shieldConnection.get(i);
+                if (shieldItem.has("Function") && shieldItem.has("Module")) {
+                    JSONArray Functions = shieldItem.getJSONArray("Function");
+                    JSONArray Modules = shieldItem.getJSONArray("Module");
+                    for (int j = 0; j < Functions.length(); j++) {
+                        Object function = Functions.get(j);
+                        Object module = Modules.get(j);
+                        configWriter.write("#define TINYLINK_" + function.toString().toUpperCase() + " " +
+                                module.toString().toUpperCase() + "\r\n");
+                        shell("cp -r " + libDir + Platform + "/TL_" + function.toString().toUpperCase() + "/" +
+                                module.toString().toUpperCase() + "/* " + buildDir);
+                        if (Platform.equals("Beagle_Bone") || Platform.equals("Raspberry_Pi") || Platform.equals("Humming")) {
+                            String[] externalCpps =
+                                    shell("ls " + libDir + Platform + "/TL_" + function.toString().toUpperCase()
+                                            + "/" + module.toString().toUpperCase() + "/*.cpp | xargs").split(" ");
+                            for (String externalCpp : externalCpps) {
+                                String[] temp1 = externalCpp.split("/");
+                                String temp2 = temp1[temp1.length - 1].split(".cpp")[0].strip();
+                                if (!CPPList.contains(temp2)) {
+                                    CPPList += " " + temp2;
+                                }
+                            }
+                            if (function.toString().equalsIgnoreCase("WIFI")) {
+                                LibCurl = true;
+                            }
+                            if (function.toString().equalsIgnoreCase("VOICE")) {
+                                LibSphinx = true;
+                            }
+                        }
+                        String[] Pins;
+                        if (!shieldItem.get("Input").toString().equalsIgnoreCase("NULL")) {
+                            Pins = shieldItem.get("Input").toString().split(",");
+                            int k = 0;
+                            for (String inputPin : Pins) {
+                                String pin = "";
+                                if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                    pin = inputPin.substring(0, 2).toUpperCase() + "_" + inputPin.substring(3).toUpperCase();
+                                } else {
+                                    if (inputPin.charAt(0) == 'D' || inputPin.charAt(0) == 'd' || inputPin.charAt(0) == 'A' || inputPin.charAt(0) == 'a') {
+                                        pin = inputPin.substring(1).toUpperCase();
+                                    } else {
+                                        pin = inputPin.toUpperCase();
+                                    }
+                                }
+                                if (inputPin.charAt(0) == 'A' || inputPin.charAt(0) == 'a') {
+                                    pin = "A" + pin;
+                                }
+                                if (shieldItem.get("Type").toString().equalsIgnoreCase("DIGITAL")) {
+                                    if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                        pinConfigWriter.write("#ifdef " + pin + "_MODE\r\n");
+                                        pinConfigWriter.write("#undef " + pin + "_MODE\r\n");
+                                        pinConfigWriter.write("#define " + pin + "_MODE gpio\r\n");
+                                        pinConfigWriter.write("#endif\r\n");
+                                    }
+                                    if (k == 0) {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_DIGITAL_INPUT" + " " + pin + "\r\n");
+                                    } else {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_DIGITAL_INPUT" + k + " " + pin + "\r\n");
+                                    }
+                                } else if (shieldItem.get("Type").toString().equalsIgnoreCase("I2C")) {
+                                    if (k == 0) {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_I2C_SDA" + " " + pin + "\r\n");
+                                    } else {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_I2C_SDA" + k + " " + pin + "\r\n");
+                                    }
+                                    pin = "";
+                                    if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                        pin = shieldItem.get("SCL").toString().substring(0, 2).toUpperCase() + "_" +
+                                                shieldItem.get("SCL").toString().substring(3);
+                                    } else {
+                                        if (upper(shieldItem.get("SCL").toString().charAt(0)) == 'D' || upper(shieldItem.get("SCL").toString().charAt(0)) == 'A') {
+                                            pin = shieldItem.get("SCL").toString().substring(1).toUpperCase();
+                                        } else {
+                                            pin = shieldItem.get("SCL").toString().toUpperCase();
+                                        }
+                                    }
+                                    if (upper(shieldItem.get("SCL").toString().charAt(0)) == 'A') {
+                                        pin = "A" + pin;
+                                    }
+                                    if (k == 0) {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_I2C_SCL" + " " + pin + "\r\n");
+                                    } else {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_I2C_SCL" + k + " " + pin + "\r\n");
+                                    }
+                                } else if (shieldItem.get("Type").toString().equalsIgnoreCase("UART")) {
+                                    if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                        pinConfigWriter.write("#ifdef " + pin + "_MODE\r\n");
+                                        pinConfigWriter.write("#undef " + pin + "_MODE\r\n");
+                                        pinConfigWriter.write("#define " + pin + "_MODE uart\r\n");
+                                        pinConfigWriter.write("#endif\r\n");
+                                    }
+                                    if (k == 0) {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_UART_RX" + " " + pin + "\r\n");
+                                    } else {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_UART_RX" + k + " " + pin + "\r\n");
+                                    }
+                                } else if (shieldItem.get("Type").toString().equalsIgnoreCase("PWM")) {
+                                    if (k == 0) {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_PWM" + " " + pin + "\r\n");
+                                    } else {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_PWM" + k + " " + pin + "\r\n");
+                                    }
+                                } else if (shieldItem.get("Type").toString().equalsIgnoreCase("SPI")) {
+                                    if (k == 0) {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_SPI_MISO" + " " + pin + "\r\n");
+                                    } else {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_SPI_MISO" + k + " " + pin + "\r\n");
+                                    }
+                                    pin = "";
+                                    if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                        pin = shieldItem.get("SCK").toString().substring(0, 2).toUpperCase() + "_" +
+                                                shieldItem.get("SCK").toString().substring(3).toUpperCase();
+                                    } else {
+                                        if (upper(shieldItem.get("SCK").toString().charAt(0)) == 'D' || upper(shieldItem.get("SCK").toString().charAt(0)) == 'A') {
+                                            pin = shieldItem.get("SCK").toString().substring(1).toUpperCase();
+                                        } else {
+                                            pin = shieldItem.get("SCK").toString().toUpperCase();
+                                        }
+                                    }
+                                    if (upper(shieldItem.get("SCK").toString().charAt(0)) == 'A') {
+                                        pin = "A" + pin;
+                                    }
+                                    if (k == 0) {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_SPI_SCK" + " " + pin + "\r\n");
+                                    } else {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_SPI_SCK" + k + " " + pin + "\r\n");
+                                    }
+                                    pin = "";
+                                    if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                        pin = shieldItem.get("SS").toString().substring(0, 2).toUpperCase() + "_" +
+                                                shieldItem.get("SS").toString().substring(3).toUpperCase();
+                                    } else {
+                                        if (upper(shieldItem.get("SS").toString().charAt(0)) == 'D' || upper(shieldItem.get("SS").toString().charAt(0)) == 'A') {
+                                            pin = shieldItem.get("SS").toString().substring(1).toUpperCase();
+                                        } else {
+                                            pin = shieldItem.get("SS").toString().toUpperCase();
+                                        }
+                                    }
+                                    if (upper(shieldItem.get("SS").toString().charAt(0)) == 'A') {
+                                        pin = "A" + pin;
+                                    }
+                                    if (k == 0) {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_SPI_SS" + " " + pin + "\r\n");
+                                    } else {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_SPI_SS" + k + " " + pin + "\r\n");
+                                    }
+                                }
+                                k++;
+
+
+                            }
+                        }
+                        if (!shieldItem.get("Output").toString().equalsIgnoreCase("NULL")) {
+                            Pins = shieldItem.get("Output").toString().split(",");
+                            int k = 0;
+                            for (String outputPin : Pins) {
+                                String pin = "";
+                                if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                    pin = outputPin.substring(0, 2).toUpperCase() + "_" +
+                                            outputPin.substring(3).toUpperCase();
+                                } else {
+                                    if (upper(outputPin.charAt(0)) == 'D' || upper(outputPin.charAt(0)) == 'A') {
+
+                                        pin = Integer.toString(Integer.parseInt(outputPin.substring(1))).toUpperCase();
+                                    } else {
+                                        pin = outputPin.toUpperCase();
+                                    }
+                                }
+                                if (upper(outputPin.charAt(0)) == 'A') {
+                                    pin = "A" + pin;
+                                }
+
+                                if (shieldItem.get("Type").toString().equalsIgnoreCase("DIGITAL")) {
+                                    if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                        pinConfigWriter.write("#ifdef " + pin + "_MODE\r\n");
+                                        pinConfigWriter.write("#undef " + pin + "_MODE\r\n");
+                                        pinConfigWriter.write("#define " + pin + "_MODE gpio\r\n");
+                                        pinConfigWriter.write("#endif\r\n");
+                                    }
+                                    if (k == 0) {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_DIGITAL_OUTPUT" + " " + pin + "\r\n");
+                                    } else {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_DIGITAL_OUTPUT" + k + " " + pin + "\r\n");
+                                    }
+                                } else if (shieldItem.get("Type").toString().equalsIgnoreCase("ANALOG")) {
+                                    if (k == 0) {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_ANALOG" + " " + pin + "\r\n");
+                                    } else {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_ANALOG" + k + " " + pin + "\r\n");
+                                    }
+                                } else if (shieldItem.get("Type").toString().equalsIgnoreCase("UART")) {
+                                    if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                        pinConfigWriter.write("#ifdef " + pin + "_MODE\r\n");
+                                        pinConfigWriter.write("#undef " + pin + "_MODE\r\n");
+                                        pinConfigWriter.write("#define " + pin + "_MODE gpio\r\n");
+                                        pinConfigWriter.write("#endif\r\n");
+                                        int no = Integer.parseInt(pin.substring(3));
+                                        String serial;
+                                        if (no == 13 || no == 11) {
+                                            serial = "TL_Serial2";
+                                        } else if (no == 37 || no == 38) {
+                                            serial = "TL_Serial3";
+                                        } else if (no == 21 || no == 22) {
+                                            serial = "TL_Serial1";
+                                        } else {
+                                            serial = "TL_Serial2";
+                                        }
+                                        for (Object temp : shieldItem.getJSONArray("Module")) {
+                                            JSONObject shieldItemModule = (JSONObject) temp;
+                                            pinConfigWriter.write("#ifdef " + shieldItem.toString().toUpperCase()
+                                                    + "_" + function.toString().toUpperCase() + "_Serial \r\n");
+                                            pinConfigWriter.write("#undef " + shieldItem.toString().toUpperCase()
+                                                    + "_" + function.toString().toUpperCase() + "_Serial \r\n");
+                                            pinConfigWriter.write("#define " + shieldItem.toString().toUpperCase()
+                                                    + "_" + function.toString().toUpperCase() + "_Serial \r\n");
+                                            pinConfigWriter.write("#endif\r\n");
+                                        }
+                                    }
+                                    if (k == 0) {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_UART_TX" + " " + pin + "\r\n");
+                                    } else {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_UART_TX" + k + " " + pin + "\r\n");
+                                    }
+                                } else if (shieldItem.get("Type").toString().equalsIgnoreCase("SPI")) {
+                                    if (k == 0) {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_SPI_MOSI" + " " + pin + "\r\n");
+                                    } else {
+                                        configWriter.write("#define " + function.toString().toUpperCase() +
+                                                "_SPI_MOSI" + k + " " + pin + "\r\n");
+                                    }
+                                }
+                                k++;
+                            }
+
+                        }
+
+                    }
+
+                }
+            }
+        } else {
             System.out.println("No ShieldConnection information");
-//            e.printStackTrace();
         }
         /// Device connection
-        try {
+        if (hardware.has("DeviceConnection")) {
             JSONArray deviceConnection = (JSONArray) hardware.get("DeviceConnection");
             for (int i = 0; i < deviceConnection.length(); i++) {
                 JSONObject item = (JSONObject) deviceConnection.get(i);
-                JSONArray Functions = (JSONArray) item.get("Function");
-                JSONArray Modules = (JSONArray) item.get("Module");
-                for (int j = 0; j < Functions.length(); j++) {
-                    Object function = Functions.get(j);
-                    Object module = Modules.get(j);
-                    configWriter.write("#define TINYLINK_" + function.toString().toUpperCase() + " " +
-                            module.toString().toUpperCase() + "\r\n");
-                    exec(new String[]{"sh",
-                            "-c", "cp " + libDir + "/" + Platform + "/TL_" + function.toString().toUpperCase() + '/' +
-                            module.toString().toUpperCase() + "/*" + " " + buildDir + " -r"});
+                if (item.has("Function") && item.has("Module")) {
+                    JSONArray Functions = item.getJSONArray("Function");
+                    JSONArray Modules = item.getJSONArray("Module");
+                    for (int j = 0; j < Functions.length(); j++) {
+                        Object function = Functions.get(j);
+                        Object module = Modules.get(j);
+                        configWriter.write("#define TINYLINK_" + function.toString().toUpperCase() + " " +
+                                module.toString().toUpperCase() + "\r\n");
+                        exec(new String[]{"sh",
+                                "-c", "cp -r " + libDir + Platform + "/TL_" + function.toString().toUpperCase() + '/' +
+                                module.toString().toUpperCase() + "/*" + " " + buildDir});
 
 
-                    if (item.get("Form").toString().toUpperCase().equals("PORT") &&
-                            item.get("AddPin").toString().toUpperCase().equals("EXTRA")) {
-                        configWriter.write("#define " + function.toString().toUpperCase() +
-                                "_" + item.get("Type").toString().toUpperCase() + " " +
-                                item.get("Port").toString().toUpperCase() + "\r\n");
+                        if (!item.get("Form").toString().equalsIgnoreCase("PORT") ||
+                                !item.get("AddPin").toString().equalsIgnoreCase("EXTRA")) {
+                            if (!item.get("Input").toString().equalsIgnoreCase("NULL")) {
+                                configWriter.write("#define " + function.toString().toUpperCase() +
+                                        "_" + item.get("Type").toString().toUpperCase() + " " +
+                                        item.get("Port").toString().toUpperCase() + "\r\n");
+
+                                String[] Pins = item.get("Input").toString().split(",");
+                                int k = 0;
+                                for (String inputPin : Pins) {
+                                    String pin = "";
+
+                                    if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                        pin = inputPin.substring(0, 2).toUpperCase() + "_" + inputPin.substring(3);
+                                    } else {
+                                        if (upper(inputPin.charAt(0)) == 'D' || upper(inputPin.charAt(0)) == 'A') {
+                                            pin = inputPin.substring(1);
+                                        } else {
+                                            pin = inputPin.toUpperCase();
+                                        }
+
+                                    }
+                                    if (upper(inputPin.charAt(0)) == 'A') {
+                                        pin = "A" + pin;
+                                    }
+                                    if (item.get("Type").toString().equalsIgnoreCase("DIGITAL")) {
+                                        if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                            pinConfigWriter.write("#ifdef " + pin + "_MODE\r\n");
+                                            pinConfigWriter.write("#undef " + pin + "_MODE\r\n");
+                                            pinConfigWriter.write("#define " + pin + "_MODE gpio\r\n");
+                                            pinConfigWriter.write("#endif\r\n");
+                                        }
+                                        if (k == 0) {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_DIGITAL_INPUT" + " " + pin + "\r\n");
+                                        } else {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_DIGITAL_INPUT" + k + " " + pin + "\r\n");
+                                        }
+                                    } else if (item.get("Type").toString().equalsIgnoreCase("I2C")) {
+                                        if (k == 0) {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_I2C_SDA" + " " + pin + "\r\n");
+                                        } else {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_I2C_SDA" + k + " " + pin + "\r\n");
+                                        }
+                                        pin = "";
+                                        if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                            pin = item.get("SCL").toString().substring(0, 2).toUpperCase() + "_" +
+                                                    item.get("SCL").toString().substring(3);
+                                        } else {
+                                            if (upper(item.get("SCL").toString().charAt(0)) == 'D' || upper(item.get("SCL").toString().charAt(0)) == 'A') {
+                                                pin = item.get("SCL").toString().substring(1).toUpperCase();
+                                            } else {
+                                                pin = item.get("SCL").toString().toUpperCase();
+                                            }
+                                        }
+                                        if (upper(item.get("SCL").toString().charAt(0)) == 'A') {
+                                            pin = "A" + pin;
+                                        }
+                                        if (k == 0) {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_I2C_SCL" + " " + pin + "\r\n");
+                                        } else {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_I2C_SCL" + k + " " + pin + "\r\n");
+                                        }
+                                    } else if (item.get("Type").toString().equalsIgnoreCase("UART")) {
+                                        if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                            pinConfigWriter.write("#ifdef " + pin + "_MODE\r\n");
+                                            pinConfigWriter.write("#undef " + pin + "_MODE\r\n");
+                                            pinConfigWriter.write("#define " + pin + "_MODE uart\r\n");
+                                            pinConfigWriter.write("#endif\r\n");
+                                        }
+                                        if (k == 0) {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_UART_RX" + " " + pin + "\r\n");
+                                        } else {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_UART_RX" + k + " " + pin + "\r\n");
+                                        }
+                                    } else if (item.get("Type").toString().equalsIgnoreCase("PWM")) {
+                                        if (k == 0) {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_PWM" + " " + pin + "\r\n");
+                                        } else {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_PWM" + k + " " + pin + "\r\n");
+                                        }
+                                    } else if (item.get("Type").toString().equalsIgnoreCase("SPI")) {
+                                        if (k == 0) {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_SPI_MISO" + " " + pin + "\r\n");
+                                        } else {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_SPI_MISO" + k + " " + pin + "\r\n");
+                                        }
+                                        pin = "";
+                                        if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                            pin = item.get("SCK").toString().substring(0, 2).toUpperCase() + "_" +
+                                                    item.get("SCK").toString().substring(3).toUpperCase();
+                                        } else {
+                                            if (upper(item.get("SCK").toString().charAt(0)) == 'D' || upper(item.get("SCK").toString().charAt(0)) == 'A') {
+                                                pin = item.get("SCK").toString().substring(1).toUpperCase();
+                                            } else {
+                                                pin = item.get("SCK").toString().toUpperCase();
+                                            }
+                                        }
+                                        if (upper(item.get("SCK").toString().charAt(0)) == 'A') {
+                                            pin = "A" + pin;
+                                        }
+                                        if (k == 0) {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_SPI_SCK" + " " + pin + "\r\n");
+                                        } else {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_SPI_SCK" + k + " " + pin + "\r\n");
+                                        }
+                                        pin = "";
+                                        if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                            pin = item.get("SS").toString().substring(0, 2).toUpperCase() + "_" +
+                                                    item.get("SS").toString().substring(3).toUpperCase();
+                                        } else {
+                                            if (upper(item.get("SS").toString().charAt(0)) == 'D' || upper(item.get("SS").toString().charAt(0)) == 'A') {
+                                                pin = item.get("SS").toString().substring(1).toUpperCase();
+                                            } else {
+                                                pin = item.get("SS").toString().toUpperCase();
+                                            }
+                                        }
+                                        if (upper(item.get("SS").toString().charAt(0)) == 'A') {
+                                            pin = "A" + pin;
+                                        }
+                                        if (k == 0) {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_SPI_SS" + " " + pin + "\r\n");
+                                        } else {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_SPI_SS" + k + " " + pin + "\r\n");
+                                        }
+                                    }
+                                    k++;
+
+                                }
+                            }
+                            if (!item.get("Output").toString().equalsIgnoreCase("NULL")) {
+                                if (debug) System.out.println("Check device output...");
+                                String[] Pins = item.get("Output").toString().split(",");
+                                int k = 0;
+                                for (String outputPin : Pins) {
+                                    String pin = "";
+                                    if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                        pin = outputPin.substring(0, 2).toUpperCase() + "_" +
+                                                outputPin.substring(3).toUpperCase();
+                                    } else {
+                                        if (upper(outputPin.charAt(0)) == 'D' || upper(outputPin.charAt(0)) == 'A') {
+                                            pin = Integer.toString(Integer.parseInt(outputPin.substring(1))).toUpperCase();
+                                        } else {
+                                            pin = outputPin.toUpperCase();
+                                        }
+                                    }
+                                    if (upper(outputPin.charAt(0)) == 'A') {
+                                        pin = "A" + pin;
+                                    }
+
+                                    if (item.get("Type").toString().equalsIgnoreCase("DIGITAL")) {
+                                        if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                            pinConfigWriter.write("#ifdef " + pin + "_MODE\r\n");
+                                            pinConfigWriter.write("#undef " + pin + "_MODE\r\n");
+                                            pinConfigWriter.write("#define " + pin + "_MODE gpio\r\n");
+                                            pinConfigWriter.write("#endif\r\n");
+                                        }
+                                        if (k == 0) {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_DIGITAL_OUTPUT" + " " + pin + "\r\n");
+                                        } else {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_DIGITAL_OUTPUT" + k + " " + pin + "\r\n");
+                                        }
+                                    } else if (item.get("Type").toString().equalsIgnoreCase("ANALOG")) {
+                                        if (debug) System.out.println("Output type: analog");
+                                        if (k == 0) {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_ANALOG" + " " + pin + "\r\n");
+                                        } else {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_ANALOG" + k + " " + pin + "\r\n");
+                                        }
+                                    } else if (item.get("Type").toString().equalsIgnoreCase("UART")) {
+                                        if (boardID == 1004 || boardID == 1005 || boardID == 1006) {
+                                            pinConfigWriter.write("#ifdef " + pin + "_MODE\r\n");
+                                            pinConfigWriter.write("#undef " + pin + "_MODE\r\n");
+                                            pinConfigWriter.write("#define " + pin + "_MODE gpio\r\n");
+                                            pinConfigWriter.write("#endif\r\n");
+                                            int no = Integer.parseInt(pin.substring(3));
+                                            String serial;
+                                            if (no == 13 || no == 11) {
+                                                serial = "TL_Serial2";
+                                            } else if (no == 37 || no == 38) {
+                                                serial = "TL_Serial3";
+                                            } else if (no == 21 || no == 22) {
+                                                serial = "TL_Serial1";
+                                            } else {
+                                                serial = "TL_Serial2";
+                                            }
+                                            for (Object temp : item.getJSONArray("Module")) {
+                                                JSONObject itemModule = (JSONObject) temp;
+                                                pinConfigWriter.write("#ifdef " + item.toString().toUpperCase()
+                                                        + "_" + function.toString().toUpperCase() + "_Serial \r\n");
+                                                pinConfigWriter.write("#undef " + item.toString().toUpperCase()
+                                                        + "_" + function.toString().toUpperCase() + "_Serial \r\n");
+                                                pinConfigWriter.write("#define " + item.toString().toUpperCase()
+                                                        + "_" + function.toString().toUpperCase() + "_Serial \r\n");
+                                                pinConfigWriter.write("#endif\r\n");
+                                            }
+                                        }
+                                        if (k == 0) {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_UART_TX" + " " + pin + "\r\n");
+                                        } else {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_UART_TX" + k + " " + pin + "\r\n");
+                                        }
+                                    } else if (item.get("Type").toString().equalsIgnoreCase("SPI")) {
+                                        if (k == 0) {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_SPI_MOSI" + " " + pin + "\r\n");
+                                        } else {
+                                            configWriter.write("#define " + function.toString().toUpperCase() +
+                                                    "_SPI_MOSI" + k + " " + pin + "\r\n");
+                                        }
+                                    }
+                                    k++;
+                                }
+
+                            }
+                        } else {
+                            configWriter.write("#define " + function.toString().toUpperCase() + "_" +
+                                    item.get("Type").toString().toUpperCase() + " " +
+                                    item.get("Port").toString().toUpperCase() + "\r\n");
+                        }
+
                     }
-                    // TODO else
-
                 }
-
             }
-
-
-        } catch (JSONException e) {
+        } else {
             System.out.println("No DeviceConnection information");
-            System.out.println(e.toString());
         }
 
         // Config.h done
@@ -316,6 +1106,32 @@ public class OneLinkCompiler {
         // CMake
         FileWriter CMakeFile = new FileWriter(new File(buildDir + "/Compile.txt"));
         CMakeFile.write(CPPList + ")\r\n");
+
+        if (Platform.equals("Beagle_Bone")) {
+            pinConfigWriter.write("#endif\r\n");
+            pinConfigWriter.close();
+        }
+
+        if (Platform.equals("Beagle_Bone") || Platform.equals("Raspberry_Pi") || Platform.equals("Humming")) {
+            if (LibCurl) {
+                if (LibSphinx) {
+                    CMakeFile.write("lib = (-lm -lz -lrt -lssl -lcrypto ../lib/libcurl.a -lpthread -lpocketsphinx -lsphinxbase -lsphinxad)");
+                } else {
+                    CMakeFile.write("lib = (-lm -lz -lrt -lssl -lcrypto ../lib/libcurl.a -lpthread)");
+                }
+            } else {
+                if (LibSphinx) {
+                    CMakeFile.write("lib = (-lm -lz -lrt -lpthread -lpocketsphinx -lsphinxbase -lsphinxad)");
+                } else {
+                    CMakeFile.write("lib = (-lm -lz -lrt -lpthread)");
+                }
+            }
+        }
+        if (Platform.equals("AliOS")) {
+            shell("chmod 777 " + buildDir + " -R");
+            shell("mv " + buildDir + "/*.h " + buildDir + "/sketch");
+            shell("mv " + buildDir + "/*.c " + buildDir + "/sketch");
+        }
         CMakeFile.close();
 
         System.out.println("Code generated.");
@@ -324,24 +1140,94 @@ public class OneLinkCompiler {
     void compile(int boardID, String targetDir, String inputSrc) {
         createDirectory(targetDir);
         switch (boardID) {
+            case 1001: {
+                shell(ARDUINO_COMPILOR + " --pref" + " build.path=" + targetDir + " --board" + " LinkItOneLinuxArduino:arm:linkit_one"
+                        + " --verify " + inputSrc + " 2>&1");
+                break;
+            }
             case 1002: {
-                exec(new String[]{ARDUINO_COMPILOR, "--pref", "build.path=" + targetDir, "--board", "arduino:avr:uno"
-                        , "--verify", inputSrc, "2>&1"});
+//                File file = new File(inputSrc);
+//                String path = file.getAbsolutePath();
+                shell(ARDUINO_COMPILOR + " --pref" + " build.path=" + targetDir + " --board" + " arduino:avr:uno"
+                        + " --verify " + inputSrc + " 2>&1");
+//                shell_gui(ARDUINO_COMPILOR + " --pref" + " build.path=" + targetDir + " --board" + " arduino:avr:uno"
+//                        + " --verify " + inputSrc + " 2>&1");
+                break;
+            }
+            case 1003: {
+                shell("cd " + targetDir + " && mkdir build && chmod 755 build");
+                String compilor = ARDUINO_COMPILOR;
+                String cxxFlags = "-std=c++11 -s";
+                String include = "-I..";
+                String linkLib = "-L../lib -Wl,-rpath-link ../lib";
+                String libs = "";
+                String code = readFromFile(targetDir + "Compile.txt");
+                File compile = new File(targetDir + "Compile.txt");
+                try {
+                    Scanner scanner = new Scanner(compile);
+                    while (scanner.hasNext()) {
+                        String line = scanner.nextLine();
+                        if (line.contains("src")) {
+                            String[] items = scanner.nextLine().split("= (")[1].split(")")[0].split(" ");
+                            for (String item : items) {
+                                shell("cd " + targetDir + "build &&" + compilor + " " + cxxFlags + " -c ../" + item + ".cpp -o " + item + ".o " + include + " 2>&1");
+
+                            }
+                        } else if (line.contains("lib")) {
+                            libs = line.split("= (")[1].split(")")[0];
+                        }
+                    }
+                    scanner.close();
+                } catch (Exception e) {
+                    System.out.println(e.toString());
+                }
+
+                shell("cd " + targetDir + "build && chmod 744 *");
+
+
+                break;
             }
         }
     }
 
     static public void main(String args[]) throws Exception {
-        OneLinkCompiler compiler = new OneLinkCompiler(args[0]);
+        if (args.length < 2) {
+            System.out.println("Usage: java -jar OneLinkLang.jar command srcfile");
+            return;
+        }
+        OneLinkCompiler compiler = new OneLinkCompiler(args[1]);
         compiler.debug = true;
-        compiler.writeToFile(compiler.extractHardwareDemand().toString(), "Function.json");
+
+        if (args[0].equalsIgnoreCase("extract")) {
+            compiler.writeToFile(compiler.extractHardwareDemand().toString(), "Function.json");
+        } else if (args[0].equalsIgnoreCase("select")) {
+            compiler.exec(new String[]{"./main", "Function.json",
+                    "Hardware.json", "HardwareList.txt", "connection.jpg", "connection.txt"});
+        } else if (args[0].equalsIgnoreCase("generate")) {
+            int boardID = compiler.readBoardID("./HardwareList.txt");
+            compiler.genCode(boardID, "Hardware.json", "sketch.ino", "sketch", "../Lib/");
+        } else if (args[0].equalsIgnoreCase("sketch")) {
+            int boardID = compiler.readBoardID("./HardwareList.txt");
+            compiler.compile(boardID, "ELF", "sketch/sketch.ino");
+        } else if(args[0].equalsIgnoreCase("clean")){
+            compiler.shell("rm -r sketch ELF Hardware.json  HardwareList.txt connection.jpg connection.txt " +
+                    "sketch.ino");
+        }
+        if (args[0].equalsIgnoreCase("all")) {
+            compiler.writeToFile(compiler.extractHardwareDemand().toString(), "Function.json");
+            compiler.exec(new String[]{"./main", "Function.json",
+                    "Hardware.json", "HardwareList.txt", "connection.jpg", "connection.txt"});
+            int boardID = compiler.readBoardID("./HardwareList.txt");
+            compiler.genCode(boardID, "Hardware.json", "sketch.ino", "sketch", "../Lib/");
+            compiler.compile(boardID, "ELF", "sketch/sketch.ino");
+        }
+
+
 //        System.out.println(compiler.extractHardwareDemand());
-        compiler.exec(new String[]{"./main", "Function.json",
-                "Hardware.json", "HardwareList.txt", "connection.jpg", "connection.txt"});
+
 //        System.out.println(compiler.extractRecommandation("board", ""));
-        int boardID = compiler.readBoardID("./HardwareList.txt");
-        compiler.genCode(boardID, "Hardware.json", "filtered.cpp", "build", "../Lib");
-        compiler.compile(boardID,"target","build/filtered.cpp");
+
+
 //        System.out.println(boardID);
 
     }
