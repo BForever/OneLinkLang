@@ -4,10 +4,6 @@ import org.antlr.v4.runtime.tree.*;
 import org.json.*;
 
 import java.io.*;
-import java.nio.charset.Charset;
-import java.security.PrivateKey;
-import java.util.Arrays;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
@@ -24,6 +20,7 @@ public class OneLinkCompiler {
     static final String HUMMING_COMPILOR = "/home/freg/gcc-linaro-arm-linux-gnueabihf-4.8/bin/arm-linux-gnueabihf-g++";   // HummingBoard compilor location
     static final String MBED_COMPILOR = "python /home/freg/.local/lib/python2.7/site-packages/mbed/mbed.py";
     static final String ALIOS_COMPILOR = "python /home/freg/.local/lib/python2.7/site-packages/aos/__main__.py";
+    static final String CORRECTOR_API="/home/freg/share/API_list.txt";
 
     void writeToFile(String contents, String fileName) {
         File file = null;
@@ -79,6 +76,10 @@ public class OneLinkCompiler {
         } catch (Exception e) {
             System.err.println(e.toString());
         }
+    }
+    public void correctCode(){
+        OneLinkDebugger oneLinkDebugger = new OneLinkDebugger(CORRECTOR_API);
+        walker.walk(oneLinkDebugger, tree);
     }
 
     public JSONObject extractHardwareDemand() {
@@ -1315,7 +1316,9 @@ public class OneLinkCompiler {
         OneLinkCompiler compiler = new OneLinkCompiler(args[1]);
         compiler.debug = true;
 
-        if (args[0].equalsIgnoreCase("extract")) {
+        if(args[0].equalsIgnoreCase("correct")){
+            compiler.correctCode();
+        }else if (args[0].equalsIgnoreCase("extract")) {
             compiler.writeToFile(compiler.extractHardwareDemand().toString(), "Function.json");
         } else if (args[0].equalsIgnoreCase("select")) {
             OneLinkCompiler.exec(new String[]{"./main", "Function.json",
@@ -1328,6 +1331,7 @@ public class OneLinkCompiler {
             compiler.compile(boardID, "../Lib/","ELF/", "sketch/sketch.ino");
         }
         if (args[0].equalsIgnoreCase("all")) {
+            compiler.correctCode();
             compiler.writeToFile(compiler.extractHardwareDemand().toString(), "Function.json");
             OneLinkCompiler.exec(new String[]{"./main", "Function.json",
                     "Hardware.json", "HardwareList.txt", "connection.jpg", "connection.txt"});

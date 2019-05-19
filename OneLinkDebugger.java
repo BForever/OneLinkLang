@@ -1,93 +1,140 @@
 import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.TokenStream;
 import org.antlr.v4.runtime.TokenStreamRewriter;
 
+import java.io.File;
+import java.io.InputStream;
 import java.util.*;
 
 public class OneLinkDebugger extends OneLinkParserBaseListener {
-    public class MeasureRange{
-        String dev;
-        int upperBound;
-        int lowerBound;
-        String unit;
+    //    public class MeasureRange {
+//        String dev;
+//        int upperBound;
+//        int lowerBound;
+//        String unit;
+//
+//        MeasureRange(String dev, int lowerBound, int upperBound, String unit) {
+//            this.dev = dev;
+//            this.upperBound = upperBound;
+//            this.lowerBound = lowerBound;
+//            this.unit = unit;
+//        }
+//    }
+    public class API_call {
+        String className;
+        String function;
+        int line;
+        int location;
 
-        MeasureRange(String dev,int lowerBound,int upperBound, String unit){
-            this.dev = dev;
-            this.upperBound = upperBound;
-            this.lowerBound = lowerBound;
-            this.unit = unit;
+        API_call(String className, String function, int line, int location) {
+            this.className = className;
+            this.function = function;
+            this.line = line;
+            this.location = location;
         }
     }
-    List<MeasureRange>measureRangeList;
-    Set<String> lib;
-    Set<OneLinkParser.UnqualifiedidContext> req;
-    TokenStreamRewriter rewriter;
-    String filtered;
-    OneLinkDebugger(TokenStream tokens){
-        lib = new HashSet<String>();
-        req = new HashSet<OneLinkParser.UnqualifiedidContext>();
-        measureRangeList = new ArrayList<MeasureRange>();
+//
+//    List<MeasureRange> measureRangeList;
+//    Set<String> lib;
+//    Set<OneLinkParser.UnqualifiedidContext> req;
+//    TokenStreamRewriter rewriter;
+//    String filtered;
 
-        rewriter = new TokenStreamRewriter(tokens);
+    private Map<String, String[]> API_map;
+    private boolean hasError;
+
+    //    OneLinkDebugger(TokenStream tokens){
+//        lib = new HashSet<String>();
+//        req = new HashSet<OneLinkParser.UnqualifiedidContext>();
+//        measureRangeList = new ArrayList<MeasureRange>();
+//
+//        rewriter = new TokenStreamRewriter(tokens);
+    OneLinkDebugger(String docfile) {
+        API_map = new HashMap<String, String[]>();
+        hasError = false;
+        try {
+            Scanner scanner = new Scanner(new File(docfile));
+            while (scanner.hasNext()) {
+                String module = scanner.nextLine().substring(3);
+                String[] functions = scanner.nextLine().split(" ");
+                API_map.put(module, functions);
+            }
+            scanner.close();
+        } catch (Exception e) {
+            System.out.println(e.toString());
+        }
+        System.out.println("Start checking code...");
 
     }
-//    @Override public void exitDeviceTranslationunit(OneLinkParser.DeviceTranslationunitContext ctx) {
-//        filtered = rewriter.getText(ctx.getSourceInterval());
+    @Override public void exitDeviceTranslationunit(OneLinkParser.DeviceTranslationunitContext ctx) {
+        if(!hasError){
+            System.out.println("No API mismatch found, code checking done.");
+        }
+    }
+
+//    @Override
+//    public void enterClassname(OneLinkParser.ClassnameContext ctx) {
+//        String name = ctx.getText();
+//        int index = name.indexOf("TL_");
+//        if (index == 0) {
+//            name = name.substring(3);
+//            ctx.start.getLine();
+//            lib.add(name);
+//        }
 //    }
 
-    @Override public void enterClassname(OneLinkParser.ClassnameContext ctx) {
+    @Override
+    public void enterUnqualifiedid(OneLinkParser.UnqualifiedidContext ctx) {
         String name = ctx.getText();
         int index = name.indexOf("TL_");
-        if(index==0){
+        if (index == 0) {
             name = name.substring(3);
-            lib.add(name);
-        }
-    }
-    @Override public void enterUnqualifiedid(OneLinkParser.UnqualifiedidContext ctx) {
-        String name = ctx.getText();
-        int index = name.indexOf("TL_");
-        if(index==0){
-            name = name.substring(3);
-            ParserRuleContext p;
-            try{
-                p  = ctx.getParent().getParent().getParent().getParent();
-                if(p instanceof OneLinkParser.PostfixexpressionContext){
-                    OneLinkParser.PostfixexpressionContext post = (OneLinkParser.PostfixexpressionContext)p;
-                    if(post.idexpression().unqualifiedid().getText().equals("setMeasuringRange")){
-                        p = p.getParent();
-                        List<String> list = getTextFromInitializerlist(((OneLinkParser.PostfixexpressionContext)p).expressionlist().initializerlist());
-                        if(list.size()>=3){
-                            measureRangeList.add(new MeasureRange(name, Integer.parseInt(list.get(0)) ,Integer.parseInt(list.get(1)),list.get(2).substring(1,list.get(2).length()-1)));
-                        }else {
-                            System.err.println("setMeasuringRange function needs three parameters");
-                        }
-                    }else {
-                        lib.add(name);
-                    }
-                }else {
-                    lib.add(name);
-                }
 
-            }catch (NullPointerException e){
-                System.err.println("invalid grammar: "+e.toString());
+            // Class name error
+            if (!API_map.containsKey(name)) {
+                String[] keys = API_map.keySet().toArray(new String[0]);
+                String similar = mostSimilar(name, keys);
+                System.out.println("Line " + ctx.start.getLine() + ":" + ctx.start.getCharPositionInLine());
+                System.out.println("API not match: 'TL_" + name + "'");
+                System.out.println("You are probably referring to 'TL_" + similar + "'");
+                hasError = true;
+            } else {// Class name correct
+                ParserRuleContext p;
+                try {
+                    p = ctx.getParent().getParent().getParent().getParent();
+                    if (p instanceof OneLinkParser.PostfixexpressionContext) {
+                        OneLinkParser.PostfixexpressionContext post = (OneLinkParser.PostfixexpressionContext) p;
+                        OneLinkParser.UnqualifiedidContext q = post.idexpression().unqualifiedid();
+                        String function = q.getText();
+                        String[] functions = API_map.get(name);
+                        if (!arrayContains(function, functions)) {
+                            String similar = mostSimilar(function, functions);
+                            System.out.println("Line " + q.start.getLine() + ":" + q.start.getCharPositionInLine());
+                            System.out.println("API not match: 'TL_" + name + "." + function + "'");
+                            System.out.println("You are probably referring to 'TL_" + name + "." + similar + "'");
+                            hasError = true;
+                        }
+                    }
+                } catch (NullPointerException e) {
+                    System.err.println("invalid grammar: " + e.toString());
+                }
             }
-        }
-        if(name.equals("REQUIRE")){
-            ParserRuleContext p;
-            try {
-                p = ctx.getParent().getParent().getParent().getParent().getParent();
-                rewriter.delete(p.start.getTokenIndex(),p.stop.getTokenIndex()+1);
-            }catch (NullPointerException e){
-                System.err.println("invalid grammar: "+e.toString());
-            }
-            req.add(ctx);
         }
     }
-    private List<String> getTextFromInitializerlist(OneLinkParser.InitializerlistContext list){
+
+    private boolean arrayContains(String target, String[] list) {
+        for (String item : list) {
+            if (target.equals(item)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<String> getTextFromInitializerlist(OneLinkParser.InitializerlistContext list) {
         List<String> result = new LinkedList<String>();
 
-        while (list!=null){
-            if(list.initializerclause()!=null){
+        while (list != null) {
+            if (list.initializerclause() != null) {
                 ((LinkedList<String>) result).addFirst(list.initializerclause().getText());
             }
             list = list.initializerlist();
@@ -96,8 +143,28 @@ public class OneLinkDebugger extends OneLinkParserBaseListener {
         return result;
     }
 
+    private String mostSimilar(String source, String[] targets) {
+        int i = 0;
+        int shortest = Integer.MAX_VALUE;
+        int index = Integer.MAX_VALUE;
+        for (String target : targets) {
+            int distance = editDistance(source, target);
+            if (distance < shortest) {
+                shortest = distance;
+                index = i;
+            }
+            i++;
+        }
+        if (shortest == Integer.MAX_VALUE) {
+            return null;
+        } else {
+            return targets[index];
+        }
+    }
+
     /**
      * 采用动态规划的方法（字符串匹配相似度）
+     *
      * @param source 源
      * @param target 要匹配的字符串
      * @return
@@ -132,5 +199,15 @@ public class OneLinkDebugger extends OneLinkParserBaseListener {
             }
         }
         return d[sourceLen][targetLen];
+    }
+
+    public static void main(String[] args) {
+        OneLinkDebugger oneLinkDebugger = new OneLinkDebugger("../share/API_list.txt");
+        oneLinkDebugger.API_map.forEach((key, value) -> {
+            System.out.println(key + "：");
+            for (String fun : value) {
+                System.out.println("\t" + fun);
+            }
+        });
     }
 }
