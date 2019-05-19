@@ -22,6 +22,8 @@ public class OneLinkCompiler {
     static final String RPI_COMPILOR = "/home/freg/gcc-linaro-arm-linux-gnueabihf-raspbian/bin/arm-linux-gnueabihf-g++";  // Raspberry Pi compilor location
     static final String BBB_COMPILOR = "/home/freg/gcc-linaro-arm-linux-gnueabihf-4.8/bin/arm-linux-gnueabihf-g++";       // BeagleBone compilor location
     static final String HUMMING_COMPILOR = "/home/freg/gcc-linaro-arm-linux-gnueabihf-4.8/bin/arm-linux-gnueabihf-g++";   // HummingBoard compilor location
+    static final String MBED_COMPILOR = "python /home/freg/.local/lib/python2.7/site-packages/mbed/mbed.py";
+    static final String ALIOS_COMPILOR = "python /home/freg/.local/lib/python2.7/site-packages/aos/__main__.py";
 
     void writeToFile(String contents, String fileName) {
         File file = null;
@@ -67,10 +69,10 @@ public class OneLinkCompiler {
 
     public OneLinkCompiler(String filename) {
         try {
-            FileInputStream file = new FileInputStream(filename);
-            ANTLRInputStream input = new ANTLRInputStream(file);
-            OneLinkLexer lexer = new OneLinkLexer(input);
+            CharStream charStream = CharStreams.fromFileName(filename);
+            OneLinkLexer lexer = new OneLinkLexer(charStream);
             tokens = new CommonTokenStream(lexer);
+
             OneLinkParser parser = new OneLinkParser(tokens);
             tree = parser.compliationUnit();
             walker = new ParseTreeWalker();
@@ -85,6 +87,10 @@ public class OneLinkCompiler {
         walker.walk(extractor, tree);
 
         // Generate filtered code
+        if(extractor.filtered==null){
+            System.out.println("Extractor failed.");
+            return null;
+        }
         writeToFile(extractor.filtered, "sketch.ino");
 
         JSONArray requirements = new JSONArray();
@@ -150,7 +156,7 @@ public class OneLinkCompiler {
         return recommand;
     }
 
-    public String exec(String[] cmd) {
+    public static String exec(String[] cmd) {
         String output = "";
         try {
             Process process = Runtime.getRuntime().exec(cmd);
@@ -170,9 +176,11 @@ public class OneLinkCompiler {
             System.out.print("\n");
             while ((line = outreader.readLine()) != null) {
                 System.out.println(line);
+                output+=line+"\r\n";
             }
             while ((line = errreader.readLine()) != null) {
                 System.out.println(line);
+                output+=line+"\r\n";
             }
 
 
@@ -182,7 +190,7 @@ public class OneLinkCompiler {
         return output;
     }
 
-    public void exec_gui(String[] cmd) {
+    public static void exec_gui(String[] cmd) {
         try {
             Process process = Runtime.getRuntime().exec(cmd, new String[]{"DISPLAY=:1"});
             InputStream stderr = process.getErrorStream();
@@ -212,13 +220,13 @@ public class OneLinkCompiler {
     }
 
     // Excuting shell command
-    public String shell(String cmd) {
+    public static String shell(String cmd) {
         String[] sh = new String[]{"sh", "-c", ""};
         sh[2] = cmd;
         return exec(sh);
     }
 
-    public void shell_gui(String cmd) {
+    public static void shell_gui(String cmd) {
         String[] sh = new String[]{"sh", "-c", ""};
         sh[2] = cmd;
         exec_gui(sh);
@@ -471,7 +479,7 @@ public class OneLinkCompiler {
                 exec(new String[]{"sh", "-c", "cp -r " + libDir + "Beagle_Bone/TinyLink/* " + buildDir});
                 exec(new String[]{"sh", "-c", "cp -r " + libDir + "Beagle_Bone/library/* " + buildDir});
                 String[] coreCpps =
-                        shell("ls " + libDir + Platform + "library/*.cpp | xargs").split(" ");
+                        shell("ls " + libDir + Platform + "/library/*.cpp | xargs").split(" ");
                 for (String coreCpp : coreCpps) {
                     String[] temp1 = coreCpp.split("/");
                     String temp2 = temp1[temp1.length - 1].split(".cpp")[0].strip();
@@ -486,7 +494,7 @@ public class OneLinkCompiler {
                 exec(new String[]{"sh", "-c", "cp -r " + libDir + "Humming/TinyLink/* " + buildDir});
                 exec(new String[]{"sh", "-c", "cp -r " + libDir + "Humming/library/* " + buildDir});
                 String[] coreCpps =
-                        shell("ls " + libDir + Platform + "library/*.cpp | xargs").split(" ");
+                        shell("ls " + libDir + Platform + "/library/*.cpp | xargs").split(" ");
                 for (String coreCpp : coreCpps) {
                     String[] temp1 = coreCpp.split("/");
                     String temp2 = temp1[temp1.length - 1].split(".cpp")[0].strip();
@@ -501,7 +509,7 @@ public class OneLinkCompiler {
                 exec(new String[]{"sh", "-c", "cp -r " + libDir + "Raspberry_Pi/TinyLink/* " + buildDir});
                 exec(new String[]{"sh", "-c", "cp -r " + libDir + "Raspberry_Pi/library/* " + buildDir});
                 String[] coreCpps =
-                        shell("ls " + libDir + Platform + "library/*.cpp | xargs").split(" ");
+                        shell("ls " + libDir + Platform + "/library/*.cpp | xargs").split(" ");
                 for (String coreCpp : coreCpps) {
                     String[] temp1 = coreCpp.split("/");
                     String temp2 = temp1[temp1.length - 1].split(".cpp")[0].strip();
@@ -515,7 +523,7 @@ public class OneLinkCompiler {
                 exec(new String[]{"sh", "-c", "cp -r " + libDir + "Mbed/TinyLink/* " + buildDir});
                 exec(new String[]{"sh", "-c", "cp -r " + libDir + "Mbed/library/* " + buildDir});
                 exec(new String[]{"sh", "-c", "cp -r " + libDir + "Mbed/.temp/* " + buildDir});
-                exec(new String[]{"sh", "-c", "cp -r " + libDir + "Mbed/.mbed/* " + buildDir});
+                exec(new String[]{"sh", "-c", "cp " + libDir + "Mbed/.mbed " + buildDir});
                 break;
             }
             case "AliOS": {
@@ -848,15 +856,28 @@ public class OneLinkCompiler {
                         exec(new String[]{"sh",
                                 "-c", "cp -r " + libDir + Platform + "/TL_" + function.toString().toUpperCase() + '/' +
                                 module.toString().toUpperCase() + "/*" + " " + buildDir});
-
+                        if (Platform.equals("Beagle_Bone") || Platform.equals("Raspberry_Pi") || Platform.equals("Humming")) {
+                            String[] externalCpps =
+                                    shell("ls " + libDir + Platform + "/TL_" + function.toString().toUpperCase()
+                                            + "/" + module.toString().toUpperCase() + "/*.cpp | xargs").split(" ");
+                            for (String externalCpp : externalCpps) {
+                                String[] temp1 = externalCpp.split("/");
+                                String temp2 = temp1[temp1.length - 1].split(".cpp")[0].strip();
+                                if (!CPPList.contains(temp2)) {
+                                    CPPList += " " + temp2;
+                                }
+                            }
+                            if (function.toString().equalsIgnoreCase("WIFI")) {
+                                LibCurl = true;
+                            }
+                            if (function.toString().equalsIgnoreCase("VOICE")) {
+                                LibSphinx = true;
+                            }
+                        }
 
                         if (!item.get("Form").toString().equalsIgnoreCase("PORT") ||
                                 !item.get("AddPin").toString().equalsIgnoreCase("EXTRA")) {
                             if (!item.get("Input").toString().equalsIgnoreCase("NULL")) {
-                                configWriter.write("#define " + function.toString().toUpperCase() +
-                                        "_" + item.get("Type").toString().toUpperCase() + " " +
-                                        item.get("Port").toString().toUpperCase() + "\r\n");
-
                                 String[] Pins = item.get("Input").toString().split(",");
                                 int k = 0;
                                 for (String inputPin : Pins) {
@@ -1105,7 +1126,10 @@ public class OneLinkCompiler {
 
         // CMake
         FileWriter CMakeFile = new FileWriter(new File(buildDir + "/Compile.txt"));
-        CMakeFile.write(CPPList + ")\r\n");
+        if(!CPPList.equals("src = (sketch")){
+            CMakeFile.write(CPPList + ")\r\n");
+        }
+
 
         if (Platform.equals("Beagle_Bone")) {
             pinConfigWriter.write("#endif\r\n");
@@ -1115,9 +1139,11 @@ public class OneLinkCompiler {
         if (Platform.equals("Beagle_Bone") || Platform.equals("Raspberry_Pi") || Platform.equals("Humming")) {
             if (LibCurl) {
                 if (LibSphinx) {
-                    CMakeFile.write("lib = (-lm -lz -lrt -lssl -lcrypto ../lib/libcurl.a -lpthread -lpocketsphinx -lsphinxbase -lsphinxad)");
+                    CMakeFile.write("lib = (-lm -lz -lrt -lssl -lcrypto "+libDir+Platform+"/lib/libcurl.a -lpthread " +
+                            "-lpocketsphinx " +
+                            "-lsphinxbase -lsphinxad)");
                 } else {
-                    CMakeFile.write("lib = (-lm -lz -lrt -lssl -lcrypto ../lib/libcurl.a -lpthread)");
+                    CMakeFile.write("lib = (-lm -lz -lrt -lssl -lcrypto "+libDir+Platform+"/lib/libcurl.a -lpthread)");
                 }
             } else {
                 if (LibSphinx) {
@@ -1137,8 +1163,10 @@ public class OneLinkCompiler {
         System.out.println("Code generated.");
     }
 
-    void compile(int boardID, String targetDir, String inputSrc) {
+    void compile(int boardID, String LibDir,String targetDir, String inputSrc) {
         createDirectory(targetDir);
+
+
         switch (boardID) {
             case 1001: {
                 shell(ARDUINO_COMPILOR + " --pref" + " build.path=" + targetDir + " --board" + " LinkItOneLinuxArduino:arm:linkit_one"
@@ -1146,35 +1174,59 @@ public class OneLinkCompiler {
                 break;
             }
             case 1002: {
-//                File file = new File(inputSrc);
-//                String path = file.getAbsolutePath();
                 shell(ARDUINO_COMPILOR + " --pref" + " build.path=" + targetDir + " --board" + " arduino:avr:uno"
                         + " --verify " + inputSrc + " 2>&1");
-//                shell_gui(ARDUINO_COMPILOR + " --pref" + " build.path=" + targetDir + " --board" + " arduino:avr:uno"
-//                        + " --verify " + inputSrc + " 2>&1");
                 break;
             }
-            case 1003: {
-                shell("cd " + targetDir + " && mkdir build && chmod 755 build");
-                String compilor = ARDUINO_COMPILOR;
+            case 1003:
+            case 1004:
+            case 1005:
+            case 1006:
+            case 1013:
+                {
+                shell("chmod 755 "+targetDir);
+
+                LibDir = new File(LibDir+"Raspberry_Pi/lib").getAbsolutePath();
+                String inputfile = new File(inputSrc).getPath();
+                String inputParentDir = new File(inputSrc).getParentFile().getAbsolutePath();
+                targetDir = new File(targetDir).getAbsolutePath();
+
+                new File(inputSrc).renameTo(new File(inputParentDir+"/sketch.cpp"));
+                if(!inputParentDir.equalsIgnoreCase(targetDir)){
+                    shell("cp -r "+inputParentDir+"/* "+targetDir);
+                }
+
+                String compilor;
+                if(boardID==1003){
+                    compilor = RPI_COMPILOR;
+                }else {
+                    compilor = HUMMING_COMPILOR;
+                }
+
                 String cxxFlags = "-std=c++11 -s";
-                String include = "-I..";
-                String linkLib = "-L../lib -Wl,-rpath-link ../lib";
+                String include = "-I"+targetDir;
+                String linkLib = "-L"+LibDir+" -Wl,-rpath-link "+LibDir;
                 String libs = "";
-                String code = readFromFile(targetDir + "Compile.txt");
-                File compile = new File(targetDir + "Compile.txt");
+
+                if(debug)System.out.println("compile file: "+inputParentDir+ "/Compile.txt");
+                File compile = new File( inputParentDir+ "/Compile.txt");
+
                 try {
                     Scanner scanner = new Scanner(compile);
                     while (scanner.hasNext()) {
                         String line = scanner.nextLine();
+                        String[] items;
                         if (line.contains("src")) {
-                            String[] items = scanner.nextLine().split("= (")[1].split(")")[0].split(" ");
+                            if(debug)System.out.println("line: "+line);
+                            items = line.split("= \\(")[1].split("\\)")[0].split(" ");
                             for (String item : items) {
-                                shell("cd " + targetDir + "build &&" + compilor + " " + cxxFlags + " -c ../" + item + ".cpp -o " + item + ".o " + include + " 2>&1");
+                                if(debug)System.out.println("item: "+item);
+                                item = new File(targetDir+"/"+item).getAbsolutePath();
+                                shell( compilor + " " + cxxFlags + " -c " + item + ".cpp -o " + item + ".o " + include + " 2>&1");
 
                             }
                         } else if (line.contains("lib")) {
-                            libs = line.split("= (")[1].split(")")[0];
+                            libs = line.split("= \\(")[1].split("\\)")[0];
                         }
                     }
                     scanner.close();
@@ -1182,15 +1234,80 @@ public class OneLinkCompiler {
                     System.out.println(e.toString());
                 }
 
-                shell("cd " + targetDir + "build && chmod 744 *");
-
+                try {
+                    String cmd=compilor + " " + cxxFlags +" -o "+targetDir+"/main ";
+                    Scanner scanner = new Scanner(compile);
+                    while (scanner.hasNext()) {
+                        String line = scanner.nextLine();
+                        String[] items;
+                        if (line.contains("src")) {
+                            items = line.split("= \\(")[1].split("\\)")[0].split(" ");
+                            for (String item : items) {
+                                item = new File(targetDir+"/"+item).getAbsolutePath();
+                                cmd+=item+".o ";
+                            }
+                        }
+                    }
+                    cmd+=" "+linkLib+" "+libs+" "+include;
+                    shell(cmd);
+                    scanner.close();
+                } catch (Exception e) {
+                    System.out.println(e.toString());
+                }
 
                 break;
+            }
+            case 1007:{
+                shell(ARDUINO_COMPILOR + " --pref" + " build.path=" + targetDir + " --board" + " arduino:avr:micro"
+                        + " --verify " + inputSrc + " 2>&1");
+                break;
+            }
+            case 1008:{
+                shell(ARDUINO_COMPILOR + " --pref" + " build.path=" + targetDir + " --board" + " arduino:avr:mega:cpu=atmega2560"
+                        + " --verify " + inputSrc + " 2>&1");
+                break;
+            }
+            case 1009:{
+                shell(ARDUINO_COMPILOR + " --pref" + " build.path=" + targetDir + " --board" + " arduino:sam:due"
+                        + " --verify " + inputSrc + " 2>&1");
+                break;
+            }
+            case 1010:{
+                shell(ARDUINO_COMPILOR + " --pref" + " build.path=" + targetDir + " --board" + " arduino:avr:nano:cpu=atmega328"
+                        + " --verify " + inputSrc + " 2>&1");
+                break;
+            }
+            case 1011:{
+                String inputParentDir = new File(inputSrc).getParentFile().getAbsolutePath();
+                targetDir = new File(targetDir).getAbsolutePath();
+                new File(inputSrc).renameTo(new File(inputParentDir+"/sketch.cpp"));
+
+                shell("cd "+inputParentDir+"&& "+MBED_COMPILOR+" compile -t GCC_ARM -m nRF51822 --build "+targetDir+" 2>&1");
+                break;
+            }
+//            case 1012:{
+//                inputSrc = new File(inputSrc).getPath();
+//                shell("cd "+targetDir+" && "+ALIOS_COMPILOR+" make "+inputSrc+"@mk3060 2>&1");
+//                shell("cd "+targetDir+" && mv out/sketch@mk3060/binary/sketch@mk3060.ota.bin sketch.ota.bin");
+//                break;
+//            }
+            default:{
+                System.out.println("Unknown Platform.");
             }
         }
     }
 
     static public void main(String args[]) throws Exception {
+        if(args.length==0){
+            System.out.println("Usage: java -jar OneLinkLang.jar command [srcfile]");
+        }
+
+        if(args[0].equalsIgnoreCase("clean")){
+            OneLinkCompiler.shell("rm -r sketch ELF Hardware.json  HardwareList.txt connection.jpg connection.txt " +
+                    "sketch.ino");
+            return;
+        }
+
         if (args.length < 2) {
             System.out.println("Usage: java -jar OneLinkLang.jar command srcfile");
             return;
@@ -1201,25 +1318,22 @@ public class OneLinkCompiler {
         if (args[0].equalsIgnoreCase("extract")) {
             compiler.writeToFile(compiler.extractHardwareDemand().toString(), "Function.json");
         } else if (args[0].equalsIgnoreCase("select")) {
-            compiler.exec(new String[]{"./main", "Function.json",
+            OneLinkCompiler.exec(new String[]{"./main", "Function.json",
                     "Hardware.json", "HardwareList.txt", "connection.jpg", "connection.txt"});
         } else if (args[0].equalsIgnoreCase("generate")) {
             int boardID = compiler.readBoardID("./HardwareList.txt");
-            compiler.genCode(boardID, "Hardware.json", "sketch.ino", "sketch", "../Lib/");
-        } else if (args[0].equalsIgnoreCase("sketch")) {
+            compiler.genCode(boardID, "Hardware.json", "sketch.ino", "sketch/", "../Lib/");
+        } else if (args[0].equalsIgnoreCase("build")) {
             int boardID = compiler.readBoardID("./HardwareList.txt");
-            compiler.compile(boardID, "ELF", "sketch/sketch.ino");
-        } else if(args[0].equalsIgnoreCase("clean")){
-            compiler.shell("rm -r sketch ELF Hardware.json  HardwareList.txt connection.jpg connection.txt " +
-                    "sketch.ino");
+            compiler.compile(boardID, "../Lib/","ELF/", "sketch/sketch.ino");
         }
         if (args[0].equalsIgnoreCase("all")) {
             compiler.writeToFile(compiler.extractHardwareDemand().toString(), "Function.json");
-            compiler.exec(new String[]{"./main", "Function.json",
+            OneLinkCompiler.exec(new String[]{"./main", "Function.json",
                     "Hardware.json", "HardwareList.txt", "connection.jpg", "connection.txt"});
             int boardID = compiler.readBoardID("./HardwareList.txt");
-            compiler.genCode(boardID, "Hardware.json", "sketch.ino", "sketch", "../Lib/");
-            compiler.compile(boardID, "ELF", "sketch/sketch.ino");
+            compiler.genCode(boardID, "Hardware.json", "sketch.ino", "sketch/", "../Lib/");
+            compiler.compile(boardID, "../Lib/","ELF/", "sketch/sketch.ino");
         }
 
 

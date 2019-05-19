@@ -1,6 +1,4 @@
-import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.TokenStream;
-import org.antlr.v4.runtime.TokenStreamRewriter;
+import org.antlr.v4.runtime.*;
 
 import java.util.*;
 
@@ -10,6 +8,7 @@ public class OneLinkHardwareExtractor extends OneLinkParserBaseListener {
         int upperBound;
         int lowerBound;
         String unit;
+
 
         MeasureRange(String dev,int lowerBound,int upperBound, String unit){
             this.dev = dev;
@@ -21,19 +20,30 @@ public class OneLinkHardwareExtractor extends OneLinkParserBaseListener {
     List<MeasureRange>measureRangeList;
     Set<String> lib;
     Set<OneLinkParser.UnqualifiedidContext> req;
-    TokenStreamRewriter rewriter;
+    private TokenStreamRewriter rewriter;
     String filtered;
-    OneLinkHardwareExtractor(TokenStream tokens){
+    private CommonTokenStream tokens;
+    OneLinkHardwareExtractor(CommonTokenStream tokens){
         lib = new HashSet<String>();
         req = new HashSet<OneLinkParser.UnqualifiedidContext>();
         measureRangeList = new ArrayList<MeasureRange>();
 
+        this.tokens = tokens;
+
         rewriter = new TokenStreamRewriter(tokens);
 
     }
+
+
     @Override public void exitDeviceTranslationunit(OneLinkParser.DeviceTranslationunitContext ctx) {
+        Token start = ctx.getStart();
+        List<Token> defines = tokens.getHiddenTokensToLeft(start.getTokenIndex());
+
+        for(Token define:defines){
+            rewriter.insertBefore(ctx.start, define.getText());
+        }
+
         filtered = rewriter.getText(ctx.getSourceInterval());
-//        filtered = rewriter.getText();
     }
 
     @Override public void enterClassname(OneLinkParser.ClassnameContext ctx) {
@@ -73,7 +83,7 @@ public class OneLinkHardwareExtractor extends OneLinkParserBaseListener {
                 System.err.println("invalid grammar: "+e.toString());
             }
         }
-        if(name.equals("REQUIRE")){
+        if(name.equalsIgnoreCase("REQUIRE")){
             ParserRuleContext p;
             try {
                 p = ctx.getParent().getParent().getParent().getParent().getParent();
