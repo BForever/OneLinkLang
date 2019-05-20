@@ -6,19 +6,6 @@ import java.io.InputStream;
 import java.util.*;
 
 public class OneLinkDebugger extends OneLinkParserBaseListener {
-    //    public class MeasureRange {
-//        String dev;
-//        int upperBound;
-//        int lowerBound;
-//        String unit;
-//
-//        MeasureRange(String dev, int lowerBound, int upperBound, String unit) {
-//            this.dev = dev;
-//            this.upperBound = upperBound;
-//            this.lowerBound = lowerBound;
-//            this.unit = unit;
-//        }
-//    }
     public class API_call {
         String className;
         String function;
@@ -93,7 +80,7 @@ public class OneLinkDebugger extends OneLinkParserBaseListener {
             if (!API_map.containsKey(name)) {
                 String[] keys = API_map.keySet().toArray(new String[0]);
                 String similar = mostSimilar(name, keys);
-                System.out.println("Line " + ctx.start.getLine() + ":" + ctx.start.getCharPositionInLine());
+                System.out.println("At line " + ctx.start.getLine() + ":" + ctx.start.getCharPositionInLine()+":");
                 System.out.println("API not match: 'TL_" + name + "'");
                 System.out.println("You are probably referring to 'TL_" + similar + "'");
                 hasError = true;
@@ -108,7 +95,7 @@ public class OneLinkDebugger extends OneLinkParserBaseListener {
                         String[] functions = API_map.get(name);
                         if (!arrayContains(function, functions)) {
                             String similar = mostSimilar(function, functions);
-                            System.out.println("Line " + q.start.getLine() + ":" + q.start.getCharPositionInLine());
+                            System.out.println("At line " + q.start.getLine() + ":" + q.start.getCharPositionInLine()+":");
                             System.out.println("API not match: 'TL_" + name + "." + function + "'");
                             System.out.println("You are probably referring to 'TL_" + name + "." + similar + "'");
                             hasError = true;

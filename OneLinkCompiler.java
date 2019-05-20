@@ -4,6 +4,8 @@ import org.antlr.v4.runtime.tree.*;
 import org.json.*;
 
 import java.io.*;
+import java.time.Duration;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Scanner;
 
@@ -1283,7 +1285,8 @@ public class OneLinkCompiler {
                 targetDir = new File(targetDir).getAbsolutePath();
                 new File(inputSrc).renameTo(new File(inputParentDir+"/sketch.cpp"));
 
-                shell("cd "+inputParentDir+"&& "+MBED_COMPILOR+" compile -t GCC_ARM -m nRF51822 --build "+targetDir+" 2>&1");
+                shell("cd "+inputParentDir+"&& export LC_ALL=C && "+MBED_COMPILOR+" compile -t GCC_ARM -m nRF51822 " +
+                        "--build "+targetDir+" 2>&1");
                 break;
             }
 //            case 1012:{
@@ -1298,7 +1301,56 @@ public class OneLinkCompiler {
         }
     }
 
+
+    static public FileWriter initTimer(){
+        FileWriter timeWriter;
+        try{
+            timeWriter = new FileWriter(new File("time.txt"),true);
+            return timeWriter;
+        }catch (IOException e){
+            System.out.println(e.toString());
+            return null;
+        }
+    }
+    static public void saveTimer(FileWriter timeWriter){
+        try{
+            timeWriter.close();
+        }catch (IOException e){
+            System.out.println(e.toString());
+        }
+    }
+    static public void recordTime(LocalTime start,LocalTime end,LocalTime up,FileWriter timer){
+        Duration used,elapsed;
+        used = Duration.between(start,end);
+        elapsed = Duration.between(up,end);
+        System.out.println("Time used: "+used.toNanos()/1000000.0+"ms, Elapsed: "+elapsed.toNanos()/1000000.0+"ms");
+
+        try{
+            timer.write(Double.toString(used.toNanos()/1000000.0)+"\t");
+        }catch (IOException e){
+            System.out.println(e.toString());
+        }
+    }
+    static public void recordTime(LocalTime end,LocalTime up,FileWriter timer){
+        Duration used,elapsed;
+        elapsed = Duration.between(up,end);
+
+        try{
+            timer.write(Double.toString(elapsed.toNanos()/1000000.0)+"\r\n");
+        }catch (IOException e){
+            System.out.println(e.toString());
+        }
+    }
+
     static public void main(String args[]) throws Exception {
+        LocalTime start,end,up;
+        up = LocalTime.now();
+        FileWriter timeWriter=initTimer();
+        if(timeWriter==null){
+            return;
+        }
+
+
         if(args.length==0){
             System.out.println("Usage: java -jar OneLinkLang.jar command [srcfile]");
         }
@@ -1313,7 +1365,11 @@ public class OneLinkCompiler {
             System.out.println("Usage: java -jar OneLinkLang.jar command srcfile");
             return;
         }
+        start = LocalTime.now();
         OneLinkCompiler compiler = new OneLinkCompiler(args[1]);
+        end = LocalTime.now();
+        recordTime(start,end,up,timeWriter);
+
         compiler.debug = true;
 
         if(args[0].equalsIgnoreCase("correct")){
@@ -1331,15 +1387,42 @@ public class OneLinkCompiler {
             compiler.compile(boardID, "../Lib/","ELF/", "sketch/sketch.ino");
         }
         if (args[0].equalsIgnoreCase("all")) {
+            // Correct code
+            start = LocalTime.now();
             compiler.correctCode();
+            end = LocalTime.now();
+            recordTime(start,end,up,timeWriter);
+
+            // Extract
+            start = LocalTime.now();
             compiler.writeToFile(compiler.extractHardwareDemand().toString(), "Function.json");
+            end = LocalTime.now();
+            recordTime(start,end,up,timeWriter);
+
+            // Resolve
+            start = LocalTime.now();
             OneLinkCompiler.exec(new String[]{"./main", "Function.json",
                     "Hardware.json", "HardwareList.txt", "connection.jpg", "connection.txt"});
+            end = LocalTime.now();
+            recordTime(start,end,up,timeWriter);
+
+            // Generate
+            start = LocalTime.now();
             int boardID = compiler.readBoardID("./HardwareList.txt");
             compiler.genCode(boardID, "Hardware.json", "sketch.ino", "sketch/", "../Lib/");
-            compiler.compile(boardID, "../Lib/","ELF/", "sketch/sketch.ino");
-        }
+            end = LocalTime.now();
+            recordTime(start,end,up,timeWriter);
 
+            // Compile
+            start = LocalTime.now();
+            compiler.compile(boardID, "../Lib/","ELF/", "sketch/sketch.ino");
+            end = LocalTime.now();
+            recordTime(start,end,up,timeWriter);
+
+
+        }
+        recordTime(end,up,timeWriter);
+        saveTimer(timeWriter);
 
 //        System.out.println(compiler.extractHardwareDemand());
 
